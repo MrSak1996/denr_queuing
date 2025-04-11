@@ -3,9 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Models\QueuesModel;
+use App\Models\QueueLogs;
 use App\Models\Clients;
 use Illuminate\Http\Request;
-use Inertia\Inertia;
+use Carbon\Carbon;
 use DB;
 
 class ClientController extends Controller
@@ -28,15 +29,21 @@ class ClientController extends Controller
                 'queues.status',
                 'queues.queued_at'
             )
-            
             ->where('queues.status', 'waiting')
-            ->limit(10)
+            ->orderByRaw("
+            CASE 
+                WHEN p.level_name = 'PWD' THEN 0
+                WHEN p.level_name = 'SENIOR' THEN 1
+                WHEN p.level_name = 'PREGNANT WOMEN' THEN 2
+                ELSE 3
+            END
+        ")
             ->orderBy('queues.queued_at', 'asc')
             ->get();
 
+
         return response()->json($queues);
     }
-
     public function updateStatus(Request $request)
     {
         $validated = $request->validate([
@@ -72,5 +79,32 @@ class ClientController extends Controller
         }
 
         return response()->json(['message' => 'Client not found'], 404);
+    }
+    public function save_queue_logs(Request $request)
+    {
+        $request->validate([
+            'queue_id' => 'required|integer|exists:queues,id', // Make sure queue_id exists in `queues` table
+            'served_by' => 'required|string',
+        ]);
+
+        $log = QueueLogs::create([
+            'queue_id'  => $request->queue_id,
+            'served_by' => $request->served_by,
+            'served_at' => now(), // Add current timestamp
+            'remarks'   => $request->remarks ?? null, // Optional
+        ]);
+
+        return response()->json([
+            'message' => 'Queue log created successfully.',
+            'data' => $log
+        ]);
+    }
+    public function get_counter(Request $request)
+    {
+        $counters = DB::table('service_counters')
+            ->select('service_counters.id as counter_id', 'service_counters.counter_name')
+            ->get();
+
+        return response()->json($counters);
     }
 }
