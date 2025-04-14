@@ -107,4 +107,22 @@ class ClientController extends Controller
 
         return response()->json($counters);
     }
+    public function transfer_client(Request $request)
+    {
+        $validated = $request->validate([
+            'queue_id' => 'required|integer',
+            'selectedCounter' => 'required|integer',
+        ]);
+
+        $client = QueuesModel::find($validated['queue_id']); // Assuming Client is your model
+
+        if ($client) {
+            $client->counter_id = $validated['selectedCounter'];
+            $client->save();
+
+            return response()->json(['message' => 'Transfer completed successfully'], 200);
+        }
+
+        return response()->json(['message' => 'Client not found'], 404);
+    }
 }

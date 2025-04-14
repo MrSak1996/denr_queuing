@@ -30,7 +30,7 @@ export default {
 };
 </script>
 <template>
-    <div class="col-span-1 flex flex-col justify-start gap-4 rounded-lg bg-gray-100 p-4">
+    <div class="col-span-1 flex flex-col justify-start gap-4 rounded-lg bg-gray-50 shadow border rounded p-4">
         <div class="grid w-full grid-cols-4 gap-5 p-4 text-center md:w-full">
             <div class="button-action">
                 <span class="mb-1 text-5xl ">150</span>

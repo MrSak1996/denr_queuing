@@ -15,6 +15,7 @@ import Aura from '@primevue/themes/aura';
 import ToastService from 'primevue/toastservice'
 import Toast from 'primevue/toast';
 import SplitButton from 'primevue/splitbutton';
+import Button from 'primevue/button';
 
 
 declare module 'vite/client' {
@@ -38,6 +39,7 @@ createInertiaApp({
         createApp({ render: () => h(App, props) })
             .component('Toast',Toast)
             .component('SplitButton',SplitButton)
+            .component('Button',Button)
             .use(plugin)
             .use(ZiggyVue)
             .use(PrimeVue, {

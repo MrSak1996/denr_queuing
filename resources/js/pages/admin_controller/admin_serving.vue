@@ -3,15 +3,20 @@ import axios from 'axios';
 import Chip from 'primevue/chip';
 import Column from 'primevue/column';
 import DataTable from 'primevue/datatable';
+import OrderList from 'primevue/orderlist';
+import Fieldset from 'primevue/fieldset';
 import modal_transfer from '@/pages/modal/modal_transfer.vue';
+import modal_priority from '../modal/modal_priority.vue';
 import { useToast } from 'primevue/usetoast';
 import { nextTick, onMounted, onUnmounted, ref } from 'vue';
 const toast = useToast();
 
 const clients = ref<any[]>([]);
 const queue = ref<any[]>([]);
+const selectedProduct = ref();
 const servingTime = ref('00:00:00');
 const transferModal = ref(false)
+const priorityModal = ref(false)
 
 const maxQueue = 50;
 let priorityCounter = 1;
@@ -119,8 +124,6 @@ const get_client = async () => {
             status: client.status,
         }));
 
-        console.log(clients.value); // All clients
-        console.log(queue.value);   // First 5 queues only
     } catch (error) {
         console.error('Error fetching client data:', error);
     }
@@ -167,6 +170,14 @@ const serving_tile = async () => {
         servingTime.value = `${h}:${m}:${s}`;
     }, 1000);
 }
+
+const onRowSelect = (event) => {
+    selectedProduct.value = event.data;
+    toast.add({ severity: 'info', summary: 'Client Selected', detail: 'Queue Number: ' + event.data.queue_number, life: 3000 });
+    transferModal.value = true;
+};
+
+
 onMounted(() => {
     get_client();
     serving_tile();
@@ -180,11 +191,15 @@ onMounted(() => {
 <template>
     <div class="col-span-1 flex flex-col items-center justify-start gap-4">
         <Toast />
-        <modal_transfer v-if="transferModal" :open="transferModal" @close="transferModal = false"></modal_transfer>
+        <modal_transfer v-if="transferModal" :queue="selectedProduct" :open="transferModal"
+            @close="transferModal = false"></modal_transfer>
+        <modal_priority v-if="priorityModal" :queue="selectedProduct" :open="priorityModal"
+            @close="priorityModal = false"></modal_priority>
+
 
         <transition-group name="fade-slide" tag="div" class="flex w-full flex-col items-center gap-4">
             <div v-for="(pac, index) in queue" :key="pac.queue_id + '-' + pac.isPriorityLane"
-                class="w-full max-w-sm rounded-xl border p-6 text-center shadow-md"
+                class="w-full max-w-lg rounded border p-6 text-center shadow"
                 :class="pac.isPriorityLane ? 'bg-yellow-200' : 'bg-gray-50'">
                 <div class="flex flex-col items-center gap-2">
                     <div v-if="index === 0" class="text-sm font-semibold text-orange-600">Current Serving</div>
@@ -212,41 +227,19 @@ onMounted(() => {
     </div>
 
     <!-- CONTROLS -->
-    <div class="col-span-3 flex w-full max-w-full flex-col gap-4">
-        <div class="flex w-full flex-col gap-4 rounded-xl border  bg-gray-100 p-6 shadow-sm">
-            <div class="text-xl font-semibold text-gray-800">Account Information</div>
-
-            <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
-                <div class="flex items-center gap-3">
-                    <span class="w-36 text-sm font-medium text-gray-600">Account Name:</span>
-                    <span class="rounded-md bg-slate-800 px-3 py-1 text-sm text-white">Mark Kim A. Sacluti</span>
-                </div>
-
-                <div class="flex items-center gap-3">
-                    <span class="w-36 text-sm font-medium text-gray-600">Account Type:</span>
-                    <span class="rounded-md bg-slate-800 px-3 py-1 text-sm text-white">Administrator</span>
-                </div>
-
-                <div class="flex items-center gap-3">
-                    <span class="w-36 text-sm font-medium text-gray-600">Email Address:</span>
-                    <span class="rounded-md bg-slate-800 px-3 py-1 text-sm text-white">marksacluti@example.com</span>
-                </div>
-
-                <div class="flex items-center gap-3">
-                    <span class="w-36 text-sm font-medium text-gray-600">Status:</span>
-                    <span class="rounded-md bg-green-600 px-3 py-1 text-sm text-white">Active</span>
-                </div>
-            </div>
-        </div>
-
-
+    <div class="col-span-3 flex max-w-full flex-col gap-4">
         <div class="flex flex-col md:flex-row gap-5 rounded-xl text-slate-900 h-screen">
-            <!-- DataTable Section (Larger Width) -->
-            <div class="flex-1 overflow-hidden rounded p-4 shadow max-h-[70vh]">
-                <DataTable size="small" paginator showGridlines :rows="8" dataKey="id" filterDisplay="menu"
-                    :value="clients" scrollable scrollHeight="flex">
+            <div
+                class="flex-1 overflow-hidden rounded p-4 shadow max-h-[100vh] w-full   border  text-center  bg-gray-50">
+
+                <DataTable v-model:selection="selectedProduct" :value="clients" selectionMode="single" size="small"
+                    paginator showGridlines :rows="20" filterDisplay="menu" scrollable scrollHeight="flex"
+                    dataKey="queue_number" :metaKeySelection="false" @rowSelect="onRowSelect">
+
                     <Column field="counter_name" header="Counter"></Column>
-                    <Column field="queue_number" header="Queue No."></Column>
+                    <Column field="queue_number" header="Queue No.">
+                        {{ data.queue_number }}
+                    </Column>
                     <Column field="service_name" header="Service"></Column>
                     <Column field="priority_level" header="Priority Level">
                         <template #body="{ data }">
@@ -265,40 +258,74 @@ onMounted(() => {
                     <Column field="queued_at" header="Date/Time"></Column>
                     <Column header="Action">
                         <template #body="{ data }">
-                            <SplitButton label="Set Priority" dropdownIcon="pi pi-cog" severity="secondary"
-                                :model="items(data)" />
+                            <SplitButton label="Set Priority" dropdownIcon="pi pi-cog" :model="items(data)" />
                         </template>
                     </Column>
                 </DataTable>
             </div>
 
-            <!-- Button Section (Smaller Width) -->
-            <div class="w-full md:w-1/4 md:h-1/4 grid grid-cols-3 gap-5 p-4">
-                <button @click="call_next_client" class="button-action">
-                    <i class="pi pi-forward mb-1 text-base"></i> NEXT
-                </button>
-                <button @click="priorityLane" class="button-action">
-                    <i class="pi pi-star mb-1 text-base"></i> PRIORITY
-                </button>
-                <button @click="transferModal=true" class="button-action">
-                    <i class="pi pi-share-alt mb-1 text-base"></i> TRANSFER
-                </button>
-                <button @click="call_next_client" class="button-action">
-                    <i class="pi pi-pause mb-1 text-base"></i> HOLD
-                </button>
-                <button @click="call_next_client" class="button-action">
-                    <i class="pi pi-refresh mb-1 text-base"></i> RECALL
-                </button>
-                <button @click="call_next_client" class="button-action">
-                    <i class="pi pi-exclamation-triangle mb-1 text-base"></i> ERROR
-                </button>
-            </div>
-        </div>
+            <div class="w-full md:w-1/4 p-4  bg-gray-50 rounded shadow flex flex-col gap-5 border" style="height: 100%">
+                <div class="grid grid-cols-3 gap-3">
+                    <button @click="call_next_client" class="button-action">
+                        <i class="pi pi-forward mb-1 text-base"></i> NEXT
+                    </button>
+                    <button @click="priorityModal = true" class="button-action">
+                        <i class="pi pi-star mb-1 text-base"></i> PRIORITY
+                    </button>
+                    <button @click="transferModal = true" class="button-action">
+                        <i class="pi pi-share-alt mb-1 text-base"></i> TRANSFER
+                    </button>
+                    <button @click="call_next_client" class="button-action">
+                        <i class="pi pi-pause mb-1 text-base"></i> HOLD
+                    </button>
+                    <button @click="call_next_client" class="button-action">
+                        <i class="pi pi-refresh mb-1 text-base"></i> RECALL
+                    </button>
+                    <button @click="call_next_client" class="button-action">
+                        <i class="pi pi-exclamation-triangle mb-1 text-base"></i> ERROR
+                    </button>
+                </div>
+                <Fieldset legend="Holding Area">
+                    <DataTable showGridlines size="small" :value="clients" :column="5" scrollHeight="30vh"
+                        dataKey="queue_number" :metaKeySelection="false" @rowSelect="onRowSelect">
+                        <Column field="counter_name" header="Counter" />
+                        <Column field="queue_number" header="Queue No." />
+                        <Column header="Action">
+                            <template #body="{ data }">
+                                <Button icon="pi pi-home" aria-label="Save" />
 
+                            </template>
+                        </Column>
+                    </DataTable>
+                </Fieldset>
+                <Fieldset legend="Recall Area">
+
+                    <DataTable showGridlines size="small" :value="clients" :rows="5" scrollHeight="30vh"
+                        dataKey="queue_number" :metaKeySelection="false" @rowSelect="onRowSelect">
+                        <Column field="counter_name" header="Counter" />
+                        <Column field="queue_number" header="Queue No." />
+                        <Column header="Action">
+                            <template #body="{ data }">
+                                <Button icon="pi pi-home" aria-label="Save" />
+
+                            </template>
+                        </Column>
+                    </DataTable>
+                </Fieldset>
+            </div>
+
+
+
+        </div>
     </div>
 </template>
-
 <style scoped>
+.highlight-row {
+    background-color: #e0f2fe !important;
+    /* Light blue */
+}
+
+
 .button-action {
     @apply flex flex-col items-center justify-center rounded-xl bg-gradient-to-b from-[#2E4156] to-[#1A2D42] p-3 text-sm font-bold text-white shadow-md transition-all hover:brightness-110;
 }

@@ -10,6 +10,9 @@ const props = defineProps({
         type: Boolean,
         default: false,
     },
+    queue: {
+        type: Object,
+    },
 });
 
 const get_counter_opts = async () => {
@@ -28,6 +31,22 @@ const closeModal = () => {
     emit('close');
 };
 
+const btn_transfer = async () => {
+    try {
+        const response = await axios.post('/api/transfer-client', {
+            selectedCounter: selectedCounter.value[0].value,
+            queue_id: props.queue.queue_id,
+        });
+        if (response.status === 200) {
+            emit('proceed', response.data);
+            closeModal();
+        } else {
+            console.error('Error transferring client:', response.data);
+        }
+    } catch (error) {
+        console.error('Error transferring client:', error);
+    }
+};
 onMounted(() => {
     get_counter_opts();
 });
@@ -46,7 +65,7 @@ onMounted(() => {
         >
             <!-- Modal Header -->
             <div class="flex items-center justify-between border-b px-4 py-3 dark:border-neutral-700">
-                <h3 class="text-lg font-semibold">Transferring Client</h3>
+                <h3 class="text-lg font-semibold">Transferring Client </h3>
                 <button @click="closeModal" class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-400">✖</button>
             </div>
 
@@ -66,6 +85,8 @@ onMounted(() => {
                         :maxSelectedLabels="3"
                         class="w-full"
                     />
+                    <Button label="Transfer Client" severity="success" @click="btn_transfer()" />
+
                 </div>
 
                 <div class="actions"></div>
