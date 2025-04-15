@@ -10,7 +10,7 @@ class ServiceCounter extends Model
 
     protected $table = 'service_counters';
 
-    protected $fillable = [
+    protected $fillable = [ 
         'counter_name',
         'assigned_service_id',
     ];

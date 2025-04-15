@@ -3,10 +3,11 @@ import axios from 'axios';
 import Chip from 'primevue/chip';
 import Column from 'primevue/column';
 import DataTable from 'primevue/datatable';
-import OrderList from 'primevue/orderlist';
 import Fieldset from 'primevue/fieldset';
 import modal_transfer from '@/pages/modal/modal_transfer.vue';
 import modal_priority from '../modal/modal_priority.vue';
+import modal_holding_area from '../modal/modal_holding_area.vue';
+import modal_recall from '../modal/modal_recall.vue';
 import { useToast } from 'primevue/usetoast';
 import { nextTick, onMounted, onUnmounted, ref } from 'vue';
 const toast = useToast();
@@ -17,6 +18,8 @@ const selectedProduct = ref();
 const servingTime = ref('00:00:00');
 const transferModal = ref(false)
 const priorityModal = ref(false)
+const holdingModal = ref(false)
+const recallModal = ref(false)
 
 const maxQueue = 50;
 let priorityCounter = 1;
@@ -191,10 +194,10 @@ onMounted(() => {
 <template>
     <div class="col-span-1 flex flex-col items-center justify-start gap-4">
         <Toast />
-        <modal_transfer v-if="transferModal" :queue="selectedProduct" :open="transferModal"
-            @close="transferModal = false"></modal_transfer>
-        <modal_priority v-if="priorityModal" :queue="selectedProduct" :open="priorityModal"
-            @close="priorityModal = false"></modal_priority>
+        <modal_transfer v-if="transferModal" :queue="selectedProduct" :open="transferModal" @close="transferModal = false"></modal_transfer>
+        <modal_priority v-if="priorityModal" :queue="selectedProduct" :open="priorityModal" @close="priorityModal = false"></modal_priority>
+        <modal_holding_area v-if="holdingModal" :queue="selectedProduct" :open="holdingModal" @close="holdingModal = false"></modal_holding_area>
+        <modal_recall v-if="recallModal" :queue="selectedProduct" :open="recallModal" @close="recallModal = false"></modal_recall>
 
 
         <transition-group name="fade-slide" tag="div" class="flex w-full flex-col items-center gap-4">
@@ -275,10 +278,10 @@ onMounted(() => {
                     <button @click="transferModal = true" class="button-action">
                         <i class="pi pi-share-alt mb-1 text-base"></i> TRANSFER
                     </button>
-                    <button @click="call_next_client" class="button-action">
+                    <button @click="holdingModal = true" class="button-action">
                         <i class="pi pi-pause mb-1 text-base"></i> HOLD
                     </button>
-                    <button @click="call_next_client" class="button-action">
+                    <button @click="recallModal = true" class="button-action">
                         <i class="pi pi-refresh mb-1 text-base"></i> RECALL
                     </button>
                     <button @click="call_next_client" class="button-action">
