@@ -3,7 +3,7 @@ import { ref, onMounted } from 'vue';
 import Select from 'primevue/select';
 import axios from 'axios';
 const emit = defineEmits(['close', 'proceed']);
-const selectedCounter = ref([])
+const selectedClient = ref([])
 const counter_opts = ref([]);
 const props = defineProps({
     open: {
@@ -13,11 +13,14 @@ const props = defineProps({
     queue: {
         type: Object,
     },
+    counterId:{
+    type:Number
+    }
 });
 
-const get_counter_opts = async () => {
+const get_counter_opts = async (counterId) => {
     try {
-        const response = await axios.get('/api/clients');
+        const response = await axios.get(`/api/clients?counter_id=${counterId}`);
         counter_opts.value = response.data.map((item: { qr_code: string }) => ({
         id: item.queue_id,
         value: item.client_id,
@@ -30,8 +33,9 @@ const get_counter_opts = async () => {
 
 const btn_recall = async () => {
     try {
+        alert(props.queue)
         const response = await axios.post('/api/recall', {
-            selectedClient: selectedCounter.value[0].value,
+            selectedClient: selectedClient.value.id,
             queue_id: props.queue.queue_id,
         });
         if (response.status === 200) {
@@ -50,7 +54,7 @@ const closeModal = () => {
 
 
 onMounted(() => {
-    get_counter_opts();
+    get_counter_opts(props.counterId);
 });
 </script>
 
@@ -80,13 +84,13 @@ onMounted(() => {
                     <Select
                     filter
                     class="w-full"
-                    v-model="selectedCounter"
+                    v-model="selectedClient"
                     :options="counter_opts" 
                     optionLabel="name" 
                     placeholder="Select a Client" />
 
                     
-                    <Button label="Transfer Client" severity="success" @click="btn_recall"  />
+                    <Button label="Re-Call Client" severity="primary" @click="btn_recall"  />
 
                 </div>
 

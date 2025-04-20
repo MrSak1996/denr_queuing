@@ -37,7 +37,7 @@ class AuthenticatedSessionController extends Controller
             $user = Auth::user();
 
             // Insert 50 items into tbl_clients
-            $this->insertClientItems($user->service_counter_id);
+            // $this->insertClientItems($user->service_counter_id);
 
             // Regenerate the session
             $request->session()->regenerate();

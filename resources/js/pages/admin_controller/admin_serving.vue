@@ -10,8 +10,13 @@ import modal_holding_area from '../modal/modal_holding_area.vue';
 import modal_recall from '../modal/modal_recall.vue';
 import { useToast } from 'primevue/usetoast';
 import { nextTick, onMounted, onUnmounted, ref } from 'vue';
-const toast = useToast();
+import { type SharedData, type User } from '@/types';
+import { usePage } from '@inertiajs/vue3';
 
+
+const page = usePage<SharedData>();
+const user = page.props.auth.user as User;
+const toast = useToast();
 const clients = ref<any[]>([]);
 const queue = ref<any[]>([]);
 const selectedProduct = ref();
@@ -115,9 +120,9 @@ const items = (client: any) => [
 
 ];
 
-const get_client = async () => {
+const get_client = async (counter_id) => {
     try {
-        const response = await axios.get('/api/clients');
+        const response = await axios.get(`/api/clients?counter_id=${counter_id}`);
         clients.value = response.data;
 
         // Limit to first 5 items before mapping
@@ -182,7 +187,7 @@ const onRowSelect = (event) => {
 
 
 onMounted(() => {
-    get_client();
+    get_client(user.service_counter_id);
     serving_tile();
     //     const intervalId = setInterval(get_client,10000); // Fetch data every 5 seconds
     //     onUnmounted(() => {
@@ -195,9 +200,9 @@ onMounted(() => {
     <div class="col-span-1 flex flex-col items-center justify-start gap-4">
         <Toast />
         <modal_transfer v-if="transferModal" :queue="selectedProduct" :open="transferModal" @close="transferModal = false"></modal_transfer>
-        <modal_priority v-if="priorityModal" :queue="selectedProduct" :open="priorityModal" @close="priorityModal = false"></modal_priority>
-        <modal_holding_area v-if="holdingModal" :queue="selectedProduct" :open="holdingModal" @close="holdingModal = false"></modal_holding_area>
-        <modal_recall v-if="recallModal" :queue="selectedProduct" :open="recallModal" @close="recallModal = false"></modal_recall>
+        <modal_priority v-if="priorityModal" :counterId="user.service_counter_id" :queue="selectedProduct" :open="priorityModal" @close="priorityModal = false"></modal_priority>
+        <modal_holding_area v-if="holdingModal" :counterId="user.service_counter_id" :queue="selectedProduct" :open="holdingModal" @close="holdingModal = false"></modal_holding_area>
+        <modal_recall v-if="recallModal" :counterId="user.service_counter_id" :queue="selectedProduct" :open="recallModal" @close="recallModal = false"></modal_recall>
 
 
         <transition-group name="fade-slide" tag="div" class="flex w-full flex-col items-center gap-4">
@@ -243,7 +248,6 @@ onMounted(() => {
                     <Column field="queue_number" header="Queue No.">
                         {{ data.queue_number }}
                     </Column>
-                    <Column field="service_name" header="Service"></Column>
                     <Column field="priority_level" header="Priority Level">
                         <template #body="{ data }">
                             <Chip class="py-0 pl-0 pr-4">

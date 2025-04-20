@@ -7,17 +7,30 @@ use App\Models\QueueLogs;
 use App\Models\Clients;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
+use Inertia\Inertia;
+
 use DB;
 
 class ClientController extends Controller
 {
+    public function index()
+    {
+        return Inertia::render('client/index', [
+            'task' => QueuesModel::all(),
+        ]);
+
+    }
+
     public function get_client(Request $request)
     {
+        $counterId = $request->query('counter_id');
+
         $queues = QueuesModel::with(['client', 'client.priorityLevel', 'serviceCounter'])
             ->join('clients as c', 'queues.client_id', '=', 'c.id')
             ->join('services as s', 'queues.service_id', '=', 's.id')
             ->join('service_counters as sc', 'queues.counter_id', '=', 'sc.id')
             ->join('priority_levels as p', 'queues.priority_level_id', '=', 'p.id')
+            ->join('users as u', 'queues.counter_id', '=', 'u.service_counter_id')
             ->select(
                 'queues.id as queue_id',
                 'queues.queue_number',
@@ -29,6 +42,7 @@ class ClientController extends Controller
                 'queues.status',
                 'queues.queued_at'
             )
+            ->where('u.service_counter_id', $counterId)
             ->where('queues.status', 'waiting')
             ->orderByRaw("
             CASE 
@@ -88,10 +102,10 @@ class ClientController extends Controller
         ]);
 
         $log = QueueLogs::create([
-            'queue_id'  => $request->queue_id,
+            'queue_id' => $request->queue_id,
             'served_by' => $request->served_by,
             'served_at' => now(), // Add current timestamp
-            'remarks'   => $request->remarks ?? null, // Optional
+            'remarks' => $request->remarks ?? null, // Optional
         ]);
 
         return response()->json([
@@ -137,6 +151,7 @@ class ClientController extends Controller
         if ($client) {
             $client->status = 'recall';
             $client->save();
+
 
             return response()->json(['message' => 'Recall completed successfully'], 200);
         }

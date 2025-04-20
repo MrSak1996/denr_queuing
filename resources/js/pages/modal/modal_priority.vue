@@ -14,6 +14,9 @@ const props = defineProps({
     queue: {
         type: Object,
     },
+    counterId: {
+        type:Number
+    }
 });
 const items = (client: any) => [
     {
@@ -50,9 +53,9 @@ const items = (client: any) => [
     },
 
 ];
-const get_client = async () => {
+const get_client = async (counterId) => {
     try {
-        const response = await axios.get('/api/clients');
+        const response = await axios.get(`/api/clients?counter_id=${counterId}`);
         clients.value = response.data;
     } catch (error) {
         console.error('Error fetching client data:', error);
@@ -83,7 +86,7 @@ const closeModal = () => {
 
 
 onMounted(() => {
-    get_client();
+    get_client(props.counterId  );
 });
 </script>
 
@@ -115,7 +118,7 @@ onMounted(() => {
 
                     </div>
 
-                    <Button label="Save" severity="success" />
+                    <Button label="Save" severity="primary" />
 
                 </div>
 

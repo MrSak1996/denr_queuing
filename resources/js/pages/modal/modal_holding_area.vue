@@ -6,15 +6,20 @@ const toast = useToast();
 import axios from 'axios';
 const emit = defineEmits(['close', 'proceed']);
 const clients = ref<any[]>([]);
+
 const props = defineProps({
     open: {
         type: Boolean,
         default: false,
     },
+    counterId:{
+        type:Number
+    },
     queue: {
         type: Object,
     },
 });
+
 const items = (client: any) => [
     {
         label: 'Holding Area',
@@ -24,12 +29,11 @@ const items = (client: any) => [
             closeModal();
         },
     },
-   
-
 ];
-const get_client = async () => {
+
+const get_client = async (counterId) => {
     try {
-        const response = await axios.get('/api/clients');
+        const response = await axios.get(`/api/clients?counter_id=${counterId}`);
         clients.value = response.data;
     } catch (error) {
         console.error('Error fetching client data:', error);
@@ -54,14 +58,15 @@ const set_client_priority = async (client: any, priority_level: any) => {
         toast.add({ severity: 'error', summary: 'Error', detail: 'Could not set client to priority lane', life: 3000 });
     }
 };
+
 const closeModal = () => {
     emit('close');
 };
 
-
 onMounted(() => {
-    get_client();
+    get_client(props.counterId);
 });
+
 </script>
 
 <template>
@@ -92,7 +97,7 @@ onMounted(() => {
 
                     </div>
 
-                    <Button label="Save" severity="success" />
+                    <Button label="Save" severity="primary" />
 
                 </div>
 
