@@ -37,4 +37,10 @@ export interface User {
     updated_at: string;
 }
 
+// Client
+export interface CounterClient {
+    counter: number;
+    ticket_number: number;
+  }
+
 export type BreadcrumbItemType = BreadcrumbItem;
