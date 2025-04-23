@@ -45,7 +45,7 @@ const call_next_client = async () => {
     try {
         await axios.post('/api/update-client-status', {
             queue_id: currentClient.queue_id,
-            status: 'Completed',
+            status: 'serving',
         });
 
         clients.value.shift();
@@ -56,13 +56,27 @@ const call_next_client = async () => {
 
         // Toast message to notify success
         toast.add({ severity: 'success', summary: 'Client Served', detail: `Client ${currentClient.queue_number} has been completed`, life: 3000 });
-        get_client();
+        get_client(user.service_counter_id);
         save_queue_logs(currentClient.queue_id, currentClient.counter_name);
     } catch (error) {
         console.error('Error updating client status:', error);
         toast.add({ severity: 'error', summary: 'Error', detail: 'Could not update client status', life: 3000 });
     }
 };
+
+const btn_completed_transaction = async () => {
+    try {
+        const currentClient = clients.value[0];
+        await axios.post('/api/update-client-transaction', {
+            queue_id: currentClient.queue_id,
+            status: 'completed',
+        });
+        get_client(user.service_counter_id);
+    }catch (error) {
+        console.error('Error updating client transaction:', error);
+        toast.add({ severity: 'error', summary: 'Error', detail: 'Could not update client transaction', life: 3000 });
+    }
+}
 
 const priorityLane = async () => {
     if (currentPriorityIndex !== -1) {
@@ -150,6 +164,7 @@ const set_client_priority = async (client: any, priority_level: any) => {
             });
         clients.value.shift();
         queue.value.shift();
+        get_client(user.service_counter_id);
         toast.add({ severity: 'success', summary: 'Priority Set', detail: 'Client set to priority lane', life: 3000 });
     } catch (error) {
         console.error('Error setting client priority:', error);
@@ -199,10 +214,14 @@ onMounted(() => {
 <template>
     <div class="col-span-1 flex flex-col items-center justify-start gap-4">
         <Toast />
-        <modal_transfer v-if="transferModal" :queue="selectedProduct" :open="transferModal" @close="transferModal = false"></modal_transfer>
-        <modal_priority v-if="priorityModal" :counterId="user.service_counter_id" :queue="selectedProduct" :open="priorityModal" @close="priorityModal = false"></modal_priority>
-        <modal_holding_area v-if="holdingModal" :counterId="user.service_counter_id" :queue="selectedProduct" :open="holdingModal" @close="holdingModal = false"></modal_holding_area>
-        <modal_recall v-if="recallModal" :counterId="user.service_counter_id" :queue="selectedProduct" :open="recallModal" @close="recallModal = false"></modal_recall>
+        <modal_transfer v-if="transferModal" :queue="selectedProduct" :open="transferModal"
+            @close="transferModal = false"></modal_transfer>
+        <modal_priority v-if="priorityModal" :counterId="user.service_counter_id" :queue="selectedProduct"
+            :open="priorityModal" @close="priorityModal = false"></modal_priority>
+        <modal_holding_area v-if="holdingModal" :counterId="user.service_counter_id" :queue="selectedProduct"
+            :open="holdingModal" @close="holdingModal = false"></modal_holding_area>
+        <modal_recall v-if="recallModal" :counterId="user.service_counter_id" :queue="selectedProduct"
+            :open="recallModal" @close="recallModal = false"></modal_recall>
 
 
         <transition-group name="fade-slide" tag="div" class="flex w-full flex-col items-center gap-4">
@@ -265,14 +284,15 @@ onMounted(() => {
                     <Column field="queued_at" header="Date/Time"></Column>
                     <Column header="Action">
                         <template #body="{ data }">
-                            <SplitButton label="Set Priority" dropdownIcon="pi pi-cog" :model="items(data)" />
+                            <!-- <SplitButton label="Set Priority" dropdownIcon="pi pi-cog" :model="items(data)" class="mr-2"/> -->
+                            <Button icon="pi pi-check" aria-label="Save" @click="btn_completed_transaction" class="p-button-sm" />
                         </template>
                     </Column>
                 </DataTable>
             </div>
 
             <div class="w-full md:w-1/4 p-4  bg-gray-50 rounded shadow flex flex-col gap-5 border" style="height: 100%">
-                <div class="grid grid-cols-3 gap-3">
+                <div class="grid grid-cols-1 gap-3">
                     <button @click="call_next_client" class="button-action">
                         <i class="pi pi-forward mb-1 text-base"></i> NEXT
                     </button>
@@ -282,17 +302,17 @@ onMounted(() => {
                     <button @click="transferModal = true" class="button-action">
                         <i class="pi pi-share-alt mb-1 text-base"></i> TRANSFER
                     </button>
-                    <button @click="holdingModal = true" class="button-action">
+                    <!-- <button @click="holdingModal = true" class="button-action">
                         <i class="pi pi-pause mb-1 text-base"></i> HOLD
-                    </button>
+                    </button> -->
                     <button @click="recallModal = true" class="button-action">
-                        <i class="pi pi-refresh mb-1 text-base"></i> RECALL
+                        <i class="pi pi-refresh mb-1 text-base"></i> CALL AGAIN
                     </button>
                     <button @click="call_next_client" class="button-action">
                         <i class="pi pi-exclamation-triangle mb-1 text-base"></i> ERROR
                     </button>
                 </div>
-                <Fieldset legend="Holding Area">
+                <!-- <Fieldset legend="Holding Area">
                     <DataTable showGridlines size="small" :value="clients" :column="5" scrollHeight="30vh"
                         dataKey="queue_number" :metaKeySelection="false" @rowSelect="onRowSelect">
                         <Column field="counter_name" header="Counter" />
@@ -318,11 +338,8 @@ onMounted(() => {
                             </template>
                         </Column>
                     </DataTable>
-                </Fieldset>
+                </Fieldset> -->
             </div>
-
-
-
         </div>
     </div>
 </template>

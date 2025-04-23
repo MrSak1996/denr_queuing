@@ -18,6 +18,7 @@ class QueuesModel extends Model
         'counter_id',
         'queue_number',
         'status',
+        'is_called',
         'queued_at',
         'called_at',
     ];

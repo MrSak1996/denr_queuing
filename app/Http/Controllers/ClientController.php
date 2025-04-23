@@ -18,7 +18,6 @@ class ClientController extends Controller
         return Inertia::render('client/index', [
             'task' => QueuesModel::all(),
         ]);
-
     }
 
     public function get_client(Request $request)
@@ -43,7 +42,7 @@ class ClientController extends Controller
                 'queues.queued_at'
             )
             ->where('u.service_counter_id', $counterId)
-            ->where('queues.status', 'waiting')
+            ->whereIn('queues.status', ['waiting', 'serving'])
             ->orderByRaw("
             CASE 
                 WHEN p.level_name = 'PWD' THEN 0
@@ -69,6 +68,8 @@ class ClientController extends Controller
 
         if ($client) {
             $client->status = $validated['status'];
+            $client->is_called = 1;
+            $client->called_at = Carbon::now();
             $client->save();
 
             return response()->json(['message' => 'Status updated successfully'], 200);

@@ -1,14 +1,18 @@
 <script lang="ts" setup>
-import { ref, onMounted } from 'vue';
 import axios from 'axios';
+import { onMounted, onUnmounted, ref, watch } from 'vue';
+import { useSpeechSynthesis } from '@vueuse/core';
 import bg3 from '../../../images/bg3.png';
 import bg4 from '../../../images/bg4.png';
 import bg5 from '../../../images/bg5.png';
 
-const images = [bg3, bg4, bg5]
-const currentBg = ref(images[0])
-
-
+const images = [bg3, bg4, bg5];
+const queueList = ref<any[]>([]);
+const currentBg = ref(images[0]);
+const counterIds = [1, 2, 3, 4];
+const lastSpoken = ref<string[]>([]);
+const { isSupported } = useSpeechSynthesis();
+let speaking = false;
 
 interface CounterClient {
   counter: number;
@@ -17,138 +21,177 @@ interface CounterClient {
 
 const counters = ref<CounterClient[]>([]);
 
+// VOICE SELECTION: Pick a female voice like Hazel, Zira, Siri
+const selectedVoice = ref<SpeechSynthesisVoice | null>(null);
+const loadVoices = () => {
+  const voices = window.speechSynthesis.getVoices();
+  const preferredVoices = voices.filter((voice) =>
+    /female|hazel|zira|susan|samantha|siri/i.test(voice.name)
+  );
+  selectedVoice.value = preferredVoices[0] || voices.find(v => /en/i.test(v.lang)) || voices[0];
+};
+if (window.speechSynthesis.onvoiceschanged !== undefined) {
+  window.speechSynthesis.onvoiceschanged = loadVoices;
+}
+loadVoices();
+
 const fetchCurrentClients = async () => {
   try {
-    const response = await axios.get('/api/current-clients');
-    counters.value = response.data;
+    const response = await axios.get(`/api/current-clients`);
+    const queueData = response.data.data;
+    counters.value = counterIds.map((id) => {
+      const match = queueData.find((q) => q.service_counter_id === id);
+      return match || { service_counter_id: id, queue_number: null };
+    });
   } catch (error) {
     console.error('Error fetching counters:', error);
   }
 };
 
+const fetchQueueList = async () => {
+  try {
+    const response = await axios.get(`/api/queue_list`);
+    queueList.value = response.data.data;
+  } catch (error) {
+    console.error('Error fetching queue list:', error);
+  }
+};
 
+watch(
+  queueList,
+  (newList) => {
+    if (!isSupported.value || speaking) return;
 
+    newList.forEach((item) => {
+      const currentNumber = item.queue_number;
+      const counterId = item.counter_id;
+
+      if (!currentNumber || lastSpoken.value.includes(currentNumber)) return;
+
+      const utterance = new SpeechSynthesisUtterance(
+        `Queue number ${currentNumber}, please proceed to counter ${counterId || 1}.`
+      );
+
+      if (selectedVoice.value) {
+        utterance.voice = selectedVoice.value;
+      }
+
+      speaking = true;
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(utterance);
+      lastSpoken.value.push(currentNumber);
+
+      utterance.onstart = () => {
+        console.log('Speech started');
+      };
+
+      utterance.onend = () => {
+        console.log('Speech ended');
+        speaking = false;
+      };
+    });
+  },
+  { deep: true }
+);
 
 onMounted(() => {
-  let index = 0
+  if (!window.speechSynthesis) {
+    console.error('Speech synthesis is not supported in this browser.');
+    return;
+  }
+
+  fetchCurrentClients();
+  const intervalId = setInterval(fetchCurrentClients, 1000);
+  const QueueList = setInterval(fetchQueueList, 1000);
+
+  onUnmounted(() => {
+    clearInterval(intervalId);
+    clearInterval(QueueList);
+  });
+
+  let index = 0;
   setInterval(() => {
-    index = (index + 1) % images.length
-    currentBg.value = images[index]
-  }, 5000) // change every 4 seconds
-})
+    index = (index + 1) % images.length;
+    currentBg.value = images[index];
+  }, 5000);
+});
 </script>
 
 <template>
   <div class="grid grid-cols-4 gap-6">
-    <div class="inline-block rounded-sm bg-[#0d4917] p-3 shadow-md h-24">
-      <div class="text-center text-6xl font-semibold leading-none text-white">COUNTER 1</div>
+    <div v-for="counter in counters" :key="counter.service_counter_id"
+      class="mx-2 inline-block h-24 rounded-sm bg-[#0d4917] p-3 shadow-md">
+      <div class="text-center text-6xl font-semibold leading-none text-white">
+        {{ 'COUNTER ' + counter.service_counter_id }}
+      </div>
       <div class="mt-4">
         <div class="flex items-center justify-center">
           <div
-            class="rounded-lg border-4 border-[#0d4917] bg-white px-2 py-1 text-[150px] font-bold leading-none text-[#132b57] mt-3">
-            1108</div>
+            class="mt-3 rounded-lg border-4 border-[#0d4917] bg-white px-2 py-1 text-[150px] font-bold leading-none text-[#132b57]">
+            {{ counter.queue_number ?? '----' }}
+          </div>
         </div>
       </div>
     </div>
-
-    <div class="inline-block rounded-sm bg-[#0d4917] p-3 shadow-md h-24">
-      <div class="text-center text-6xl font-semibold leading-none text-white">COUNTER 2</div>
-      <div class="mt-4">
-        <div class="flex items-center justify-center">
-          <div
-            class="rounded-lg border-4 border-[#0d4917] bg-white px-2 py-1 text-[150px] font-bold leading-none text-[#132b57] mt-3">
-            1109</div>
-        </div>
-      </div>
-    </div>
-
-    <div class="inline-block rounded-sm bg-[#0d4917] p-3 shadow-md h-24">
-      <div class="text-center text-6xl font-semibold leading-none text-white">COUNTER 3</div>
-      <div class="mt-4">
-        <div class="flex items-center justify-center">
-          <div
-            class="rounded-lg border-4 border-[#0d4917] bg-white px-2 py-1 text-[150px] font-bold leading-none text-[#132b57] mt-3">
-            1110</div>
-        </div>
-      </div>
-    </div>
-
-    <div class="inline-block rounded-sm bg-[#0d4917] p-3 shadow-md h-24">
-      <div class="text-center text-6xl font-semibold leading-none text-white">COUNTER 4</div>
-      <div class="mt-4">
-        <div class="flex items-center justify-center">
-          <div
-            class="rounded-lg border-4 border-[#0d4917] bg-white px-2 py-1 text-[150px] font-bold leading-none text-[#132b57] mt-3">
-            1111</div>
-        </div>
-      </div>
-    </div>
-
   </div>
-  <div class="col-span-3 flex max-w-full  flex-col gap-4 mt-[200px]">
-    <div class="flex flex-col md:flex-row gap-5 rounded-xl text-[#132b57] mt-3">
+  <div class="col-span-3 mt-[200px] flex max-w-full flex-col gap-4">
+    <div class="mt-3 flex flex-col gap-5 rounded-xl text-[#132b57] md:flex-row">
       <!-- Left Content -->
       <div
-    class="flex-1 overflow-hidden rounded p-4 shadow w-full h-[500px] border text-center bg-cover bg-center text-white transition-all duration-1000 ease-in-out"
-    :style="{ backgroundImage: `url(${currentBg})` }"
-  >
-    <!-- Optional overlay content -->
-    <!-- <h1 class="text-4xl font-bold mt-40 bg-black bg-opacity-50 px-6 py-3 rounded inline-block"></h1> -->
-  </div>
-
-
-
-      <!-- Right Sidebar -->
-      <div class="w-full md:w-1/3 px-6 py-5  rounded  flex flex-col text-center gap-0 ">
-        <div class="text-5xl font-semibold  text-[#132b57] mt-3">Ticket Number</div>
-        <div class="text-[200px] md:text-[250px] font-bold leading-none text-red-700">1108</div>
-        <div class="text-6xl text-white bg-slate-900 py-2 px-4 rounded-lg">
-          Please proceed to <span class="font-bold ">COUNTER 1</span>
-        </div>
+        class="h-[500px] w-full flex-1 overflow-hidden rounded border bg-cover bg-center p-4 text-center text-white shadow transition-all duration-1000 ease-in-out"
+        :style="{ backgroundImage: `url(${currentBg})` }">
       </div>
 
-
+      <!-- Right Sidebar -->
+      <div class="flex w-full flex-col gap-0 rounded px-6 py-5 text-center md:w-1/3" v-for="queue in queueList"
+        :key="queue.id">
+        <div class="mt-3 text-5xl font-semibold text-[#132b57]">Ticket Number</div>
+        <div class="blink text-[150px] font-bold leading-none text-red-700 md:text-[200px]">
+          {{ queue.queue_number }}
+        </div>
+        <div class="rounded-lg bg-slate-900 px-4 py-2 text-6xl text-white">
+          Please proceed to <span class="font-bold">COUNTER {{ queue.counter_id }}</span>
+        </div>
+      </div>
     </div>
   </div>
-
 </template>
 
 <style scoped>
-/* Header Styling */
+@keyframes blink {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+.blink {
+  animation: blink 1s infinite;
+}
 .bg-gradient-to-r {
   background: linear-gradient(to right, #f59e0b, #d97706);
 }
-
-/* Hover animation on the counter boxes */
 .transition-transform {
   transition: transform 0.3s ease-in-out;
 }
-
 .transform {
   transform: scale(1);
 }
-
 .hover\:scale-105:hover {
   transform: scale(1.05);
 }
-
-/* Animation for ticket count */
 @keyframes fadeIn {
   0% {
     opacity: 0;
   }
-
   100% {
     opacity: 1;
   }
 }
-
-/* Counter box inner styling */
 .counter-box {
   animation: fadeIn 0.5s ease-in-out;
 }
-
-/* Ticket Numbers and Count Styling */
 .ticket-count {
   font-size: 1.125rem;
   font-weight: 600;
