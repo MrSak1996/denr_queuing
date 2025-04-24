@@ -12,7 +12,9 @@ import { useToast } from 'primevue/usetoast';
 import { nextTick, onMounted, onUnmounted, ref } from 'vue';
 import { type SharedData, type User } from '@/types';
 import { usePage } from '@inertiajs/vue3';
-
+import { useSpeechSynthesis } from '@vueuse/core';
+const { isSupported } = useSpeechSynthesis();
+let speaking = false;
 
 const page = usePage<SharedData>();
 const user = page.props.auth.user as User;
@@ -25,12 +27,22 @@ const transferModal = ref(false)
 const priorityModal = ref(false)
 const holdingModal = ref(false)
 const recallModal = ref(false)
-
+const selectedVoice = ref<SpeechSynthesisVoice | null>(null);
 const maxQueue = 50;
 let priorityCounter = 1;
 let currentPriorityIndex = -1;
 
-
+const loadVoices = () => {
+  const voices = window.speechSynthesis.getVoices();
+  const preferredVoices = voices.filter((voice) =>
+    /female|hazel|zira|susan|samantha|siri/i.test(voice.name)
+  );
+  selectedVoice.value = preferredVoices[0] || voices.find(v => /en/i.test(v.lang)) || voices[0];
+};
+if (window.speechSynthesis.onvoiceschanged !== undefined) {
+  window.speechSynthesis.onvoiceschanged = loadVoices;
+}
+loadVoices();
 
 const call_next_client = async () => {
     if (clients.value.length === 0) {
@@ -72,7 +84,7 @@ const btn_completed_transaction = async () => {
             status: 'completed',
         });
         get_client(user.service_counter_id);
-    }catch (error) {
+    } catch (error) {
         console.error('Error updating client transaction:', error);
         toast.add({ severity: 'error', summary: 'Error', detail: 'Could not update client transaction', life: 3000 });
     }
@@ -200,6 +212,43 @@ const onRowSelect = (event) => {
     transferModal.value = true;
 };
 
+const btn_call = async (queue_number) => {
+  try {
+    const currentClient = clients.value[0];
+    if (!currentClient || !isSupported.value || speaking) return;
+
+    const utterance = new SpeechSynthesisUtterance(
+      `Queue number ${queue_number}, please proceed to ${currentClient.counter_name || 'counter 1'}.`
+    );
+
+    if (selectedVoice.value) {
+      utterance.voice = selectedVoice.value;
+    }
+
+    speaking = true;
+    window.speechSynthesis.cancel(); // Cancel any ongoing speech
+    window.speechSynthesis.speak(utterance);
+
+    utterance.onstart = () => {
+      console.log('Calling client...');
+    };
+
+    utterance.onend = () => {
+      console.log('Finished calling.');
+      speaking = false;
+    };
+  } catch (error) {
+    console.error('Error calling client:', error);
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: 'Could not call client',
+      life: 3000,
+    });
+  }
+};
+
+
 
 onMounted(() => {
     get_client(user.service_counter_id);
@@ -229,11 +278,11 @@ onMounted(() => {
                 class="w-full max-w-lg rounded border p-6 text-center shadow"
                 :class="pac.isPriorityLane ? 'bg-yellow-200' : 'bg-gray-50'">
                 <div class="flex flex-col items-center gap-2">
-                    <div v-if="index === 0" class="text-sm font-semibold text-orange-600">Current Serving</div>
+                    <div v-if="index === 0" class="text-sm font-semibold text-green-600">Current Serving</div>
                     <div class="text-lg font-bold text-blue-900">Token Number</div>
 
-                    <div class="mt-2 rounded-lg border-4 border-orange-500 px-10 py-6 text-6xl font-bold"
-                        :class="pac.isPriorityLane ? 'text-yellow-800' : 'text-orange-500'">
+                    <div class="mt-2 rounded-lg border-4 border-green-500 px-10 py-6 text-6xl font-bold"
+                        :class="pac.isPriorityLane ? 'text-blue-800' : 'text-green-500'">
                         {{ pac.queue_number }}
                     </div>
 
@@ -285,7 +334,12 @@ onMounted(() => {
                     <Column header="Action">
                         <template #body="{ data }">
                             <!-- <SplitButton label="Set Priority" dropdownIcon="pi pi-cog" :model="items(data)" class="mr-2"/> -->
-                            <Button icon="pi pi-check" aria-label="Save" @click="btn_completed_transaction" class="p-button-sm" />
+                            <Button icon="pi pi-check" aria-label="Save" @click="btn_completed_transaction"
+                                class="p-button-sm mr-2" />
+                            <Button severity="warn" icon="pi pi-megaphone" aria-label="Save" @click="btn_call(data.queue_number)"
+                                class="p-button-sm mr-2" />
+                            <Button severity="danger" icon="pi pi-arrow-circle-right" aria-label="Save"
+                                 class="p-button-sm" />
                         </template>
                     </Column>
                 </DataTable>

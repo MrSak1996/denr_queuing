@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use App\Http\Controllers\ClientController;
+use App\Http\Controllers\TransactionController;
 
 Route::get('/', function () {
     return Inertia::render('Welcome');
@@ -13,6 +14,7 @@ Route::get('dashboard', function () {
 })->middleware(['auth', 'verified'])->name('dashboard');
 
 Route::get('/client/index', [ClientController::class, 'index'])->name('client.index');
+Route::get('/transaction/index', [TransactionController::class, 'index'])->name('transaction.index');
 
 
 

@@ -19,6 +19,8 @@ Route::post('/save_queue_logs', [ClientController::class, 'save_queue_logs']);
 Route::post('/transfer-client', [ClientController::class, 'transfer_client']);
 Route::post('/recall', [ClientController::class, 'recall']);
 Route::post('/update-client-transaction', [CounterController::class, 'update_client_transaction']);
+Route::post('/transaction', [CounterController::class, 'transaction']);
+
 
 
 Route::get('/current-clients', [CounterController::class, 'current_clients']);
