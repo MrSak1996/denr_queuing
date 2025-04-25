@@ -76,7 +76,7 @@ class CounterController extends Controller
         $prefix = match ($counterId) {
             1 => 'L',
             2 => 'P',
-            3 => 'O',
+            3 => 'D',
             default => 'Q',
         };
 
@@ -89,9 +89,9 @@ class CounterController extends Controller
 
         // Extract and increment number
         if ($latestQueue && preg_match('/\d+/', $latestQueue->queue_number, $matches)) {
-            $nextNumber = str_pad(((int) $matches[0]) + 1, 3, '0', STR_PAD_LEFT);
+            $nextNumber = str_pad(((int) $matches[0]) + 1, 2, '0', STR_PAD_LEFT);
         } else {
-            $nextNumber = '001';
+            $nextNumber = '01';
         }
 
         $queueNumber = $prefix . $nextNumber;
@@ -112,7 +112,8 @@ class CounterController extends Controller
 
         return response()->json([
             'message' => 'Queue status updated successfully',
-            'queue_number' => $queueNumber
+            'queue_number' => $queueNumber,
+            'coumter_id' => $counterId,
         ]);
     }
 

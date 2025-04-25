@@ -1,9 +1,14 @@
 <script setup lang="ts">
+import { ref } from 'vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { type BreadcrumbItem } from '@/types';
 import { Head } from '@inertiajs/vue3';
 import denr_wall from '../../../images/bg6.png';
 import axios from 'axios';
+import modal_generate_queue from '../modal/modal_generate_queue.vue';
+const open = ref(false);
+const queue_number = ref('');
+const counter_id = ref('');
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -14,23 +19,35 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 const btn_transaction = async (counterId) => {
     try {
-        const response = await axios.post('/api/transaction',{
+        const response = await axios.post('/api/transaction', {
             counter_id: counterId,
         });
-        if (response.data.success) {
-            // Handle success, e.g., navigate to another page or show a message
-            console.log('Transaction successful:', response.data.message);
+
+        const { message, queue_number: qNum, coumter_id: cId } = response.data;
+
+        if (message) {
+            queue_number.value = qNum;
+            counter_id.value = cId;
+            open.value = true; // Show modal
         } else {
-            // Handle error, e.g., show an error message
-            console.error('Transaction failed:', response.data.message);
+            console.warn('Response received but no message found.');
         }
     } catch (error) {
-        console.error('Error during transaction:', error);
+        console.error('❌ Error during transaction:', error);
     }
 };
+
+
 </script>
 
 <template>
+    <modal_generate_queue 
+    v-if="open"
+    :counterId="counter_id"
+    :queue_no="queue_number"
+    :open="open" 
+    @close="open = false">
+    </modal_generate_queue>
     <Head title="Client" />
     <AppLayout :breadcrumbs="breadcrumbs">
         <div
