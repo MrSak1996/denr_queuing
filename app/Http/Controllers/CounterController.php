@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\QueuesModel;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 use Inertia\Inertia;
@@ -88,9 +89,9 @@ class CounterController extends Controller
 
         // Extract and increment number
         if ($latestQueue && preg_match('/\d+/', $latestQueue->queue_number, $matches)) {
-            $nextNumber = str_pad(((int) $matches[0]) + 1, 4, '0', STR_PAD_LEFT);
+            $nextNumber = str_pad(((int) $matches[0]) + 1, 3, '0', STR_PAD_LEFT);
         } else {
-            $nextNumber = '0001';
+            $nextNumber = '001';
         }
 
         $queueNumber = $prefix . $nextNumber;
@@ -113,5 +114,23 @@ class CounterController extends Controller
             'message' => 'Queue status updated successfully',
             'queue_number' => $queueNumber
         ]);
+    }
+
+    public function recallClient(Request $request)
+    {
+        $queue = QueuesModel::where('queue_number', $request->queue_id)->first();
+
+        if (!$queue) {
+            return response()->json(['error' => 'Queue not found'], 404);
+        }
+
+        if ($queue->status === 'serving' && $queue->is_called == 1) {
+            $queue->called_at = now();
+            $queue->save();
+
+            return response()->json(['message' => 'Client re-called successfully.']);
+        }
+
+        return response()->json(['error' => 'Client is not in serving state or already handled.'], 400);
     }
 }

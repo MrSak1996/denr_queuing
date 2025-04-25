@@ -11,6 +11,7 @@ const queueList = ref<any[]>([]);
 const currentBg = ref(images[0]);
 const counterIds = [1, 2, 3, 4];
 const lastSpoken = ref<string[]>([]);
+const spokenTimestamps = ref({}); // key: queue_number, value: last called_at timestamp
 const { isSupported } = useSpeechSynthesis();
 let speaking = false;
 
@@ -48,25 +49,35 @@ const fetchCurrentClients = async () => {
   }
 };
 
+// const fetchQueueList = async () => {
+//   try {
+//     const response = await axios.get(`/api/queue_list`);
+//     queueList.value = response.data.data;
+//   } catch (error) {
+//     console.error('Error fetching queue list:', error);
+//   }
+// };
+
 const fetchQueueList = async () => {
   try {
     const response = await axios.get(`/api/queue_list`);
-    queueList.value = response.data.data;
-  } catch (error) {
-    console.error('Error fetching queue list:', error);
-  }
-};
+    const newList = response.data.data;
 
-watch(
-  queueList,
-  (newList) => {
+    queueList.value = newList;
+
     if (!isSupported.value || speaking) return;
 
     newList.forEach((item) => {
       const currentNumber = item.queue_number;
       const counterId = item.counter_id;
+      const calledAt = item.called_at;
 
-      if (!currentNumber || lastSpoken.value.includes(currentNumber)) return;
+      if (!currentNumber || !calledAt) return;
+
+      const lastSpokenTimestamp = spokenTimestamps.value[currentNumber];
+
+      // Speak only if `called_at` is new or updated
+      if (lastSpokenTimestamp === calledAt) return;
 
       const utterance = new SpeechSynthesisUtterance(
         `Queue number ${currentNumber}, please proceed to counter ${counterId || 1}.`
@@ -79,7 +90,9 @@ watch(
       speaking = true;
       window.speechSynthesis.cancel();
       window.speechSynthesis.speak(utterance);
-      lastSpoken.value.push(currentNumber);
+
+      // Save the latest called_at timestamp
+      spokenTimestamps.value[currentNumber] = calledAt;
 
       utterance.onstart = () => {
         console.log('Speech started');
@@ -90,9 +103,50 @@ watch(
         speaking = false;
       };
     });
-  },
-  { deep: true }
-);
+
+  } catch (error) {
+    console.error('Error fetching queue list:', error);
+  }
+};
+
+
+
+// watch(
+//   queueList,
+//   (newList) => {
+//     if (!isSupported.value || speaking) return;
+
+//     newList.forEach((item) => {
+//       const currentNumber = item.queue_number;
+//       const counterId = item.counter_id;
+
+//       if (!currentNumber || lastSpoken.value.includes(currentNumber)) return;
+
+//       const utterance = new SpeechSynthesisUtterance(
+//         `Queue number ${currentNumber}, please proceed to counter ${counterId || 1}.`
+//       );
+
+//       if (selectedVoice.value) {
+//         utterance.voice = selectedVoice.value;
+//       }
+
+//       speaking = true;
+//       window.speechSynthesis.cancel();
+//       window.speechSynthesis.speak(utterance);
+//       lastSpoken.value.push(currentNumber);
+
+//       utterance.onstart = () => {
+//         console.log('Speech started');
+//       };
+
+//       utterance.onend = () => {
+//         console.log('Speech ended');
+//         speaking = false;
+//       };
+//     });
+//   },
+//   { deep: true }
+// );
 
 onMounted(() => {
   if (!window.speechSynthesis) {
@@ -101,6 +155,7 @@ onMounted(() => {
   }
 
   fetchCurrentClients();
+  fetchQueueList();
   const intervalId = setInterval(fetchCurrentClients, 1000);
   const QueueList = setInterval(fetchQueueList, 1000);
 
@@ -159,39 +214,51 @@ onMounted(() => {
 
 <style scoped>
 @keyframes blink {
-  0%, 100% {
+
+  0%,
+  100% {
     opacity: 1;
   }
+
   50% {
     opacity: 0;
   }
 }
+
 .blink {
   animation: blink 1s infinite;
 }
+
 .bg-gradient-to-r {
   background: linear-gradient(to right, #f59e0b, #d97706);
 }
+
 .transition-transform {
   transition: transform 0.3s ease-in-out;
 }
+
 .transform {
   transform: scale(1);
 }
+
 .hover\:scale-105:hover {
   transform: scale(1.05);
 }
+
 @keyframes fadeIn {
   0% {
     opacity: 0;
   }
+
   100% {
     opacity: 1;
   }
 }
+
 .counter-box {
   animation: fadeIn 0.5s ease-in-out;
 }
+
 .ticket-count {
   font-size: 1.125rem;
   font-weight: 600;

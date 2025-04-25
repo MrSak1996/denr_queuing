@@ -33,14 +33,14 @@ let priorityCounter = 1;
 let currentPriorityIndex = -1;
 
 const loadVoices = () => {
-  const voices = window.speechSynthesis.getVoices();
-  const preferredVoices = voices.filter((voice) =>
-    /female|hazel|zira|susan|samantha|siri/i.test(voice.name)
-  );
-  selectedVoice.value = preferredVoices[0] || voices.find(v => /en/i.test(v.lang)) || voices[0];
+    const voices = window.speechSynthesis.getVoices();
+    const preferredVoices = voices.filter((voice) =>
+        /female|hazel|zira|susan|samantha|siri/i.test(voice.name)
+    );
+    selectedVoice.value = preferredVoices[0] || voices.find(v => /en/i.test(v.lang)) || voices[0];
 };
 if (window.speechSynthesis.onvoiceschanged !== undefined) {
-  window.speechSynthesis.onvoiceschanged = loadVoices;
+    window.speechSynthesis.onvoiceschanged = loadVoices;
 }
 loadVoices();
 
@@ -213,40 +213,47 @@ const onRowSelect = (event) => {
 };
 
 const btn_call = async (queue_number) => {
-  try {
-    const currentClient = clients.value[0];
-    if (!currentClient || !isSupported.value || speaking) return;
+    try {
+        // const currentClient = clients.value[0];
+        // if (!currentClient || !isSupported.value || speaking) return;
 
-    const utterance = new SpeechSynthesisUtterance(
-      `Queue number ${queue_number}, please proceed to ${currentClient.counter_name || 'counter 1'}.`
-    );
+        // const utterance = new SpeechSynthesisUtterance(
+        //     `Queue number ${queue_number}, please proceed to ${currentClient.counter_name || 'counter 1'}.`
+        // );
 
-    if (selectedVoice.value) {
-      utterance.voice = selectedVoice.value;
+        // if (selectedVoice.value) {
+        //     utterance.voice = selectedVoice.value;
+        // }
+
+        // speaking = true;
+        // window.speechSynthesis.cancel(); // Cancel any ongoing speech
+        // window.speechSynthesis.speak(utterance);
+
+        // utterance.onstart = () => {
+        //     console.log('Calling client...');
+        // };
+
+        // utterance.onend = () => {
+        //     console.log('Finished calling.');
+        //     speaking = false;
+        // };
+
+        await axios.post('/api/recallClient', {
+            queue_id: queue_number,
+        });
+    } catch (error) {
+        console.error('Error calling client:', error);
+        toast.add({
+            severity: 'error',
+            summary: 'Error',
+            detail: 'Could not call client',
+            life: 3000,
+        });
     }
-
-    speaking = true;
-    window.speechSynthesis.cancel(); // Cancel any ongoing speech
-    window.speechSynthesis.speak(utterance);
-
-    utterance.onstart = () => {
-      console.log('Calling client...');
-    };
-
-    utterance.onend = () => {
-      console.log('Finished calling.');
-      speaking = false;
-    };
-  } catch (error) {
-    console.error('Error calling client:', error);
-    toast.add({
-      severity: 'error',
-      summary: 'Error',
-      detail: 'Could not call client',
-      life: 3000,
-    });
-  }
 };
+
+
+
 
 
 
@@ -316,7 +323,7 @@ onMounted(() => {
                     <Column field="queue_number" header="Queue No.">
                         {{ data.queue_number }}
                     </Column>
-                    <Column field="priority_level" header="Priority Level">
+                    <!-- <Column field="priority_level" header="Priority Level">
                         <template #body="{ data }">
                             <Chip class="py-0 pl-0 pr-4">
                                 <span :class="data.priority_level === 'PWD' || data.priority_level == 'Senior'
@@ -328,18 +335,18 @@ onMounted(() => {
                                 <span class="ml-2 font-medium">{{ data.priority_level }}</span>
                             </Chip>
                         </template>
-                    </Column>
+</Column> -->
                     <Column field="status" header="Status"></Column>
                     <Column field="queued_at" header="Date/Time"></Column>
-                    <Column header="Action">
+                    <Column header="Action" style="width: 130px;">
                         <template #body="{ data }">
                             <!-- <SplitButton label="Set Priority" dropdownIcon="pi pi-cog" :model="items(data)" class="mr-2"/> -->
                             <Button icon="pi pi-check" aria-label="Save" @click="btn_completed_transaction"
                                 class="p-button-sm mr-2" />
-                            <Button severity="warn" icon="pi pi-megaphone" aria-label="Save" @click="btn_call(data.queue_number)"
-                                class="p-button-sm mr-2" />
+                            <Button severity="warn" icon="pi pi-megaphone" aria-label="Save"
+                                @click="btn_call(data.queue_number)" class="p-button-sm mr-2" />
                             <Button severity="danger" icon="pi pi-arrow-circle-right" aria-label="Save"
-                                 class="p-button-sm" />
+                                class="p-button-sm" />
                         </template>
                     </Column>
                 </DataTable>
