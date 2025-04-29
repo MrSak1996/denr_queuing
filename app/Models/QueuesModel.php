@@ -12,6 +12,7 @@ class QueuesModel extends Model
     protected $table = 'queues';
 
     protected $fillable = [
+        'id',
         'client_id',
         'priority_level_id',
         'service_id',

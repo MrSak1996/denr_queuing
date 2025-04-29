@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\QueuesModel;
+use App\Models\Clients;
+use App\Events\ClientUpdated;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 use Inertia\Inertia;
@@ -67,12 +69,8 @@ class CounterController extends Controller
     {
         $counterId = $request->input('counter_id');
 
-        $priorityLevelId = 4; // default
-        if ($counterId == 2) {
-            $priorityLevelId = 1;
-        }
+        $priorityLevelId = $counterId == 2 ? 1 : 4;
 
-        // Prefix based on counter ID
         $prefix = match ($counterId) {
             1 => 'L',
             2 => 'P',
@@ -80,14 +78,13 @@ class CounterController extends Controller
             default => 'Q',
         };
 
-        // Get latest queue number for this counter and prefix
+        // Get latest queue number with matching prefix
         $latestQueue = DB::table('queues')
             ->where('counter_id', $counterId)
             ->where('queue_number', 'like', "$prefix%")
             ->orderByDesc('id')
             ->first();
 
-        // Extract and increment number
         if ($latestQueue && preg_match('/\d+/', $latestQueue->queue_number, $matches)) {
             $nextNumber = str_pad(((int) $matches[0]) + 1, 2, '0', STR_PAD_LEFT);
         } else {
@@ -96,7 +93,7 @@ class CounterController extends Controller
 
         $queueNumber = $prefix . $nextNumber;
 
-        // Insert into queues table
+        // Insert queue
         DB::table('queues')->insert([
             'priority_level_id' => $priorityLevelId,
             'client_id' => 1,
@@ -110,12 +107,27 @@ class CounterController extends Controller
             'updated_at' => now(),
         ]);
 
+        // Retrieve latest client with queue
+        $client = Clients::whereHas('queues', function ($query) use ($counterId, $queueNumber) {
+            $query->where('counter_id', $counterId)
+                ->where('queue_number', $queueNumber);
+        })->with(['queues' => function ($q) use ($counterId, $queueNumber) {
+            $q->where('counter_id', $counterId)
+                ->where('queue_number', $queueNumber)
+                ->orderByDesc('id');
+        }])->first();
+
+        // Fire event
+        event(new ClientUpdated($client));
+
         return response()->json([
             'message' => 'Queue status updated successfully',
             'queue_number' => $queueNumber,
-            'coumter_id' => $counterId,
+            'counter_id' => $counterId,
         ]);
     }
+
+
 
     public function recallClient(Request $request)
     {

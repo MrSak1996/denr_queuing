@@ -1,9 +1,21 @@
 import '../css/app.css';
 import 'primeicons/primeicons.css';
 
+import Echo from 'laravel-echo';
+import Pusher from 'pusher-js';
+
+window.Pusher = Pusher;
+
+window.Echo = new Echo({
+    broadcaster: 'pusher',
+    key: import.meta.env.VITE_PUSHER_APP_KEY,   // <-- key
+    cluster: import.meta.env.VITE_PUSHER_APP_CLUSTER, // <-- cluster
+    forceTLS: true,
+    encrypted: true,
+});
+
 
 // Optional: your own global styles (must come after)
-
 import { createInertiaApp } from '@inertiajs/vue3';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import type { DefineComponent } from 'vue';
@@ -16,7 +28,6 @@ import ToastService from 'primevue/toastservice'
 import Toast from 'primevue/toast';
 import SplitButton from 'primevue/splitbutton';
 import Button from 'primevue/button';
-
 
 declare module 'vite/client' {
     interface ImportMetaEnv {
@@ -44,13 +55,13 @@ createInertiaApp({
             .use(ZiggyVue)
             .use(PrimeVue, {
                 theme: {
-                  preset: Aura,
-                  options: {
-                      darkModeSelector: false || 'none',
-                  }
-              }
-              }) 
-              .use(ToastService)
+                    preset: Aura,
+                    options: {
+                        darkModeSelector: false || 'none',
+                    }
+                }
+            })
+            .use(ToastService)
 
             .mount(el);
     },

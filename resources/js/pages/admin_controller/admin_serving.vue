@@ -1,59 +1,109 @@
 <script lang="ts" setup>
-import axios from 'axios';
-import Chip from 'primevue/chip';
-import Column from 'primevue/column';
-import DataTable from 'primevue/datatable';
-import Fieldset from 'primevue/fieldset';
-import modal_transfer from '@/pages/modal/modal_transfer.vue';
-import modal_priority from '../modal/modal_priority.vue';
-import modal_holding_area from '../modal/modal_holding_area.vue';
-import modal_recall from '../modal/modal_recall.vue';
-import { useToast } from 'primevue/usetoast';
-import { nextTick, onMounted, onUnmounted, ref } from 'vue';
-import { type SharedData, type User } from '@/types';
+import { ref, nextTick, onMounted } from 'vue';
 import { usePage } from '@inertiajs/vue3';
+import { useToast } from 'primevue/usetoast';
 import { useSpeechSynthesis } from '@vueuse/core';
-const { isSupported } = useSpeechSynthesis();
-let speaking = false;
+import axios from 'axios';
+import Echo from 'laravel-echo';
 
+// PrimeVue Components
+import DataTable from 'primevue/datatable';
+import Column from 'primevue/column';
+import Chip from 'primevue/chip';
+import Fieldset from 'primevue/fieldset';
+
+// Modals
+import ModalTransfer from '@/pages/modal/modal_transfer.vue';
+import ModalPriority from '../modal/modal_priority.vue';
+import ModalHoldingArea from '../modal/modal_holding_area.vue';
+import ModalRecall from '../modal/modal_recall.vue';
+
+import { type SharedData, type User } from '@/types';
+
+// === STATE ===
 const page = usePage<SharedData>();
 const user = page.props.auth.user as User;
 const toast = useToast();
+
 const clients = ref<any[]>([]);
 const queue = ref<any[]>([]);
-const selectedProduct = ref();
+const selectedProduct = ref<any>(null);
 const servingTime = ref('00:00:00');
-const transferModal = ref(false)
-const priorityModal = ref(false)
-const holdingModal = ref(false)
-const recallModal = ref(false)
+
+const transferModal = ref(false);
+const priorityModal = ref(false);
+const holdingModal = ref(false);
+const recallModal = ref(false);
+
 const selectedVoice = ref<SpeechSynthesisVoice | null>(null);
 const maxQueue = 50;
 let priorityCounter = 1;
 let currentPriorityIndex = -1;
 
+// === SPEECH SYNTHESIS ===
+const { isSupported } = useSpeechSynthesis();
+
 const loadVoices = () => {
     const voices = window.speechSynthesis.getVoices();
-    const preferredVoices = voices.filter((voice) =>
+    const preferredVoices = voices.filter(voice =>
         /female|hazel|zira|susan|samantha|siri/i.test(voice.name)
     );
     selectedVoice.value = preferredVoices[0] || voices.find(v => /en/i.test(v.lang)) || voices[0];
 };
+
 if (window.speechSynthesis.onvoiceschanged !== undefined) {
     window.speechSynthesis.onvoiceschanged = loadVoices;
 }
 loadVoices();
 
-const call_next_client = async () => {
-    if (clients.value.length === 0) {
+// === FUNCTIONS ===
+
+const getClient = async (counterId: number) => {
+    try {
+
+        const { data } = await axios.get(`/api/clients?counter_id=${counterId}`);
+        clients.value = data;
+
+        queue.value = data.slice(0, 2).map((client: any) => ({
+            queue_id: client.queue_id,
+            queue_number: client.queue_number,
+            status: client.status,
+        }));
+        window.Echo.channel(`clients.counter.${counterId}`)
+            .listen('ClientUpdated', (e: any) => {
+                console.log('Client updated received:', e.client);
+
+                // Update the table or clients list
+                const index = clients.value.findIndex(c => c.queue_id === e.client.queue_id);
+                if (index !== -1) {
+                    clients.value[index] = e.client;
+                } else {
+                    clients.value.push(e.client);
+                }
+
+                queue.value = clients.value.slice(0, 2).map((client: any) => ({
+                    queue_id: client.queue_id,
+                    queue_number: client.queue_number,
+                    status: client.status,
+                }));
+
+                console.log('Updated client in table:', e.client);
+            });
+
+    } catch (error) {
+        console.error('Error fetching client data:', error);
+    }
+};
+
+const callNextClient = async () => {
+    if (!clients.value.length) {
         toast.add({ severity: 'warn', summary: 'Queue Empty', detail: 'No more clients in the queue!', life: 3000 });
         return;
     }
 
-    // Mark the current client as completed in the frontend
     const currentClient = clients.value[0];
-    currentClient.status = 'Completed';  // Update the status to 'Completed'
-    // Send API request to update the client status in the database
+    currentClient.status = 'Completed';
+
     try {
         await axios.post('/api/update-client-status', {
             queue_id: currentClient.queue_id,
@@ -62,140 +112,96 @@ const call_next_client = async () => {
 
         clients.value.shift();
         queue.value.shift();
+        clients.value = [...clients.value]; // Refresh reactivity
 
-        // Re-assign the array to trigger reactivity
-        clients.value = [...clients.value];
+        await saveQueueLogs(currentClient.queue_id, currentClient.counter_name);
+        await getClient(user.service_counter_id);
 
-        // Toast message to notify success
         toast.add({ severity: 'success', summary: 'Client Served', detail: `Client ${currentClient.queue_number} has been completed`, life: 3000 });
-        get_client(user.service_counter_id);
-        save_queue_logs(currentClient.queue_id, currentClient.counter_name);
     } catch (error) {
         console.error('Error updating client status:', error);
         toast.add({ severity: 'error', summary: 'Error', detail: 'Could not update client status', life: 3000 });
     }
 };
 
-const btn_completed_transaction = async () => {
+const completeTransaction = async () => {
+    if (!clients.value.length) return;
     try {
         const currentClient = clients.value[0];
         await axios.post('/api/update-client-transaction', {
             queue_id: currentClient.queue_id,
             status: 'completed',
         });
-        get_client(user.service_counter_id);
+        await getClient(user.service_counter_id);
     } catch (error) {
-        console.error('Error updating client transaction:', error);
-        toast.add({ severity: 'error', summary: 'Error', detail: 'Could not update client transaction', life: 3000 });
-    }
-}
-
-const priorityLane = async () => {
-    if (currentPriorityIndex !== -1) {
-        // Fade out the current PAC-PRIO
-        queue.value[currentPriorityIndex].isPriorityLane = false;
-        // Wait for the animation to complete
-        await nextTick();
-    }
-
-    const nextPacNumber = priorityCounter++; // Increment priority PAC counter
-    if (nextPacNumber <= maxQueue) {
-        // Insert the priority PAC at the front with `isPriorityLane` flag
-        queue.value.unshift({ number: nextPacNumber, isPriorityLane: true, isNormal: false });
-        currentPriorityIndex = 0; // Update the index of the new PAC-PRIO
-    }
-
-    // Now, sort the `PAC-PRIO` items only, ensuring they are always in order at the front
-    const priorityItems = queue.value.filter((item) => item.isPriorityLane);
-    const normalItems = queue.value.filter((item) => item.isNormal);
-
-    // Sort the priority PACs by number in ascending order
-    priorityItems.sort((a, b) => a.number - b.number);
-    queue.value = [...priorityItems, ...normalItems];
-};
-
-const items = (client: any) => [
-    {
-        label: 'PWD',
-        icon: 'pi pi-exclamation-circle',
-        command: () => {
-            set_client_priority(client, 1);
-        },
-    },
-    {
-        label: 'Senior Citizen',
-        icon: 'pi pi-user',
-        command: () => {
-            set_client_priority(client, 2);
-        },
-    },
-    {
-        label: 'Pregnant Women',
-        icon: 'pi pi-user-plus',
-        command: () => {
-            set_client_priority(client, 3);
-        },
-    },
-    {
-        label: 'Regular Client',
-        icon: 'pi pi-user-edit',
-        command: () => {
-            set_client_priority(client, 4);
-        },
-    },
-
-];
-
-const get_client = async (counter_id) => {
-    try {
-        const response = await axios.get(`/api/clients?counter_id=${counter_id}`);
-        clients.value = response.data;
-
-        // Limit to first 5 items before mapping
-        queue.value = response.data.slice(0, 2).map((client: any) => ({
-            queue_id: client.queue_id,
-            queue_number: client.queue_number,
-            status: client.status,
-        }));
-
-    } catch (error) {
-        console.error('Error fetching client data:', error);
+        console.error('Error completing transaction:', error);
+        toast.add({ severity: 'error', summary: 'Error', detail: 'Could not complete transaction', life: 3000 });
     }
 };
 
-const set_client_priority = async (client: any, priority_level: any) => {
-    if (clients.value.length === 0) {
-        toast.add({ severity: 'warn', summary: 'Queue Empty', detail: 'No more clients in the queue!', life: 3000 });
-        return;
-    }
+const setClientPriority = async (client: any, priorityLevel: number) => {
     try {
-        await axios.post('/api/set_client_priority',
-            {
-                client_id: client.client_id,
-                priority_level_id: priority_level
-            });
+        await axios.post('/api/set_client_priority', {
+            client_id: client.client_id,
+            priority_level_id: priorityLevel,
+        });
         clients.value.shift();
         queue.value.shift();
-        get_client(user.service_counter_id);
+        await getClient(user.service_counter_id);
+
         toast.add({ severity: 'success', summary: 'Priority Set', detail: 'Client set to priority lane', life: 3000 });
     } catch (error) {
         console.error('Error setting client priority:', error);
-        toast.add({ severity: 'error', summary: 'Error', detail: 'Could not set client to priority lane', life: 3000 });
+        toast.add({ severity: 'error', summary: 'Error', detail: 'Could not set client priority', life: 3000 });
     }
 };
 
-const save_queue_logs = async (queue_id: any, counter_name: any) => {
+const priorityLane = async () => {
+    if (currentPriorityIndex !== -1) {
+        queue.value[currentPriorityIndex].isPriorityLane = false;
+        await nextTick();
+    }
+
+    const nextPriorityNumber = priorityCounter++;
+    if (nextPriorityNumber <= maxQueue) {
+        queue.value.unshift({ number: nextPriorityNumber, isPriorityLane: true, isNormal: false });
+        currentPriorityIndex = 0;
+    }
+
+    const priorityItems = queue.value.filter(item => item.isPriorityLane).sort((a, b) => a.number - b.number);
+    const normalItems = queue.value.filter(item => item.isNormal);
+
+    queue.value = [...priorityItems, ...normalItems];
+};
+
+const clientOptions = (client: any) => [
+    { label: 'PWD', icon: 'pi pi-exclamation-circle', command: () => setClientPriority(client, 1) },
+    { label: 'Senior Citizen', icon: 'pi pi-user', command: () => setClientPriority(client, 2) },
+    { label: 'Pregnant Women', icon: 'pi pi-user-plus', command: () => setClientPriority(client, 3) },
+    { label: 'Regular Client', icon: 'pi pi-user-edit', command: () => setClientPriority(client, 4) },
+];
+
+const saveQueueLogs = async (queueId: number, counterName: string) => {
     try {
         await axios.post('/api/save_queue_logs', {
-            queue_id: queue_id,
-            served_by: counter_name,
+            queue_id: queueId,
+            served_by: counterName,
         });
     } catch (error) {
         console.error('Error saving queue logs:', error);
     }
-}
+};
 
-const serving_tile = async () => {
+const callClient = async (queueId: number) => {
+    try {
+        await axios.post('/api/recallClient', { queue_id: queueId });
+    } catch (error) {
+        console.error('Error recalling client:', error);
+        toast.add({ severity: 'error', summary: 'Error', detail: 'Could not call client', life: 3000 });
+    }
+};
+
+const startServingTimer = () => {
     let seconds = 0;
     setInterval(() => {
         seconds++;
@@ -204,13 +210,14 @@ const serving_tile = async () => {
         const s = String(seconds % 60).padStart(2, '0');
         servingTime.value = `${h}:${m}:${s}`;
     }, 1000);
-}
+};
 
-const onRowSelect = (event) => {
+const onRowSelect = (event: any) => {
     selectedProduct.value = event.data;
-    toast.add({ severity: 'info', summary: 'Client Selected', detail: 'Queue Number: ' + event.data.queue_number, life: 3000 });
+    toast.add({ severity: 'info', summary: 'Client Selected', detail: `Queue Number: ${event.data.queue_number}`, life: 3000 });
     transferModal.value = true;
 };
+
 
 const btn_call = async (queue_number) => {
     try {
@@ -218,7 +225,7 @@ const btn_call = async (queue_number) => {
         // if (!currentClient || !isSupported.value || speaking) return;
 
         // const utterance = new SpeechSynthesisUtterance(
-        //     `Queue number ${queue_number}, please proceed to ${currentClient.counter_name || 'counter 1'}.`
+        //     Queue number ${queue_number}, please proceed to ${currentClient.counter_name || 'counter 1'}.
         // );
 
         // if (selectedVoice.value) {
@@ -251,33 +258,33 @@ const btn_call = async (queue_number) => {
         });
     }
 };
-
-
-
-
-
-
+// === LIFECYCLE ===
 onMounted(() => {
-    get_client(user.service_counter_id);
-    serving_tile();
-    //     const intervalId = setInterval(get_client,10000); // Fetch data every 5 seconds
-    //     onUnmounted(() => {
-    //     clearInterval(intervalId); 
-    //   });
+
+    window.Echo.channel(`clients.counter.1`)
+        .listen('ClientUpdated', (e: any) => {
+            console.log('Client updated received:', e.client); // Make sure this logs
+        });
+
+    const counterId = user.service_counter_id ?? 1;
+    getClient(counterId);
+    startServingTimer();
 });
 </script>
+
+
 
 <template>
     <div class="col-span-1 flex flex-col items-center justify-start gap-4">
         <Toast />
-        <modal_transfer v-if="transferModal" :queue="selectedProduct" :open="transferModal"
-            @close="transferModal = false"></modal_transfer>
-        <modal_priority v-if="priorityModal" :counterId="user.service_counter_id" :queue="selectedProduct"
-            :open="priorityModal" @close="priorityModal = false"></modal_priority>
-        <modal_holding_area v-if="holdingModal" :counterId="user.service_counter_id" :queue="selectedProduct"
-            :open="holdingModal" @close="holdingModal = false"></modal_holding_area>
-        <modal_recall v-if="recallModal" :counterId="user.service_counter_id" :queue="selectedProduct"
-            :open="recallModal" @close="recallModal = false"></modal_recall>
+        <ModalTransfer v-if="transferModal" :queue="selectedProduct" :open="transferModal"
+            @close="transferModal = false"></ModalTransfer>
+        <ModalPriority v-if="priorityModal" :counterId="user.service_counter_id" :queue="selectedProduct"
+            :open="priorityModal" @close="priorityModal = false"></ModalPriority>
+        <ModalHoldingArea> v-if="holdingModal" :counterId="user.service_counter_id" :queue="selectedProduct"
+            :open="holdingModal" @close="holdingModal = false"></ModalHoldingArea>
+        <ModalRecall v-if="recallModal" :counterId="user.service_counter_id" :queue="selectedProduct"
+            :open="recallModal" @close="recallModal = false"></ModalRecall>
 
 
         <transition-group name="fade-slide" tag="div" class="flex w-full flex-col items-center gap-4">
@@ -300,7 +307,7 @@ onMounted(() => {
 
                     <button
                         class="mt-4  w-24 rounded-md bg-[#1a2d42] py-2 text-sm font-bold text-white transition-all hover:brightness-110"
-                        @click="call_next_client">
+                        @click="callNextClient">
                         {{ pac.status.toUpperCase() }}
                     </button>
                 </div>
@@ -341,7 +348,7 @@ onMounted(() => {
                     <Column header="Action" style="width: 130px;">
                         <template #body="{ data }">
                             <!-- <SplitButton label="Set Priority" dropdownIcon="pi pi-cog" :model="items(data)" class="mr-2"/> -->
-                            <Button icon="pi pi-check" aria-label="Save" @click="btn_completed_transaction"
+                            <Button icon="pi pi-check" aria-label="Save" @click="completeTransaction"
                                 class="p-button-sm mr-2" />
                             <Button severity="warn" icon="pi pi-megaphone" aria-label="Save"
                                 @click="btn_call(data.queue_number)" class="p-button-sm mr-2" />
@@ -354,7 +361,7 @@ onMounted(() => {
 
             <div class="w-full md:w-1/4 p-4  bg-gray-50 rounded shadow flex flex-col gap-5 border" style="height: 100%">
                 <div class="grid grid-cols-1 gap-3">
-                    <button @click="call_next_client" class="button-action">
+                    <button @click="callNextClient" class="button-action">
                         <i class="pi pi-forward mb-1 text-base"></i> NEXT
                     </button>
                     <button @click="priorityModal = true" class="button-action">
@@ -369,7 +376,7 @@ onMounted(() => {
                     <button @click="recallModal = true" class="button-action">
                         <i class="pi pi-refresh mb-1 text-base"></i> CALL AGAIN
                     </button>
-                    <button @click="call_next_client" class="button-action">
+                    <button @click="callNextClient" class="button-action">
                         <i class="pi pi-exclamation-triangle mb-1 text-base"></i> ERROR
                     </button>
                 </div>

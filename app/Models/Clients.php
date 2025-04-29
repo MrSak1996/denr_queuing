@@ -24,8 +24,13 @@ class Clients extends Model
     }
 
     // Relationship to Queue
+    // public function queues()
+    // {
+    //     return $this->hasMany(QueuesModel::class);
+    // }
+    // Clients.php
     public function queues()
     {
-        return $this->hasMany(QueuesModel::class);
+        return $this->hasMany(QueuesModel::class,'counter_id'); // <<<<<< Add 'client_id' as the foreign key
     }
 }
