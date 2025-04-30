@@ -36,27 +36,49 @@ if (window.speechSynthesis.onvoiceschanged !== undefined) {
 }
 loadVoices();
 
+
+
+
+
 const fetchCurrentClients = async () => {
   try {
     const response = await axios.get(`/api/current-clients`);
     const queueData = response.data.data;
+
+    // Map counters based on counterIds
     counters.value = counterIds.map((id) => {
       const match = queueData.find((q) => q.service_counter_id === id);
       return match || { service_counter_id: id, queue_number: null };
+    });
+
+    // Subscribe to WebSocket channels for each counter
+    counterIds.forEach((id) => {
+      window.Echo.channel(`client.counter.${id}`)
+        .listen('.CounterEvent', (e: any) => {
+          const updatedCounterId = e.service_counter_id;
+          const updatedQueueNumber = e.queue_number;
+
+          const index = counters.value.findIndex(
+            (counter) => counter.service_counter_id === updatedCounterId
+          );
+
+          if (index !== -1) {
+            counters.value[index].queue_number = updatedQueueNumber;
+            // counters.value[index].status = e.status; // if needed
+          } else {
+            counters.value.push({
+              service_counter_id: updatedCounterId,
+              queue_number: updatedQueueNumber,
+              // status: e.status, // if needed
+            });
+          }
+        });
+
     });
   } catch (error) {
     console.error('Error fetching counters:', error);
   }
 };
-
-// const fetchQueueList = async () => {
-//   try {
-//     const response = await axios.get(`/api/queue_list`);
-//     queueList.value = response.data.data;
-//   } catch (error) {
-//     console.error('Error fetching queue list:', error);
-//   }
-// };
 
 const fetchQueueList = async () => {
   try {
@@ -78,7 +100,6 @@ const fetchQueueList = async () => {
 
       // Speak only if `called_at` is new or updated
       if (lastSpokenTimestamp === calledAt) return;
-
       const utterance = new SpeechSynthesisUtterance(
         `Queue number ${currentNumber}, please proceed to counter ${counterId || 1}.`
       );
@@ -110,57 +131,12 @@ const fetchQueueList = async () => {
 };
 
 
-
-// watch(
-//   queueList,
-//   (newList) => {
-//     if (!isSupported.value || speaking) return;
-
-//     newList.forEach((item) => {
-//       const currentNumber = item.queue_number;
-//       const counterId = item.counter_id;
-
-//       if (!currentNumber || lastSpoken.value.includes(currentNumber)) return;
-
-//       const utterance = new SpeechSynthesisUtterance(
-//         `Queue number ${currentNumber}, please proceed to counter ${counterId || 1}.`
-//       );
-
-//       if (selectedVoice.value) {
-//         utterance.voice = selectedVoice.value;
-//       }
-
-//       speaking = true;
-//       window.speechSynthesis.cancel();
-//       window.speechSynthesis.speak(utterance);
-//       lastSpoken.value.push(currentNumber);
-
-//       utterance.onstart = () => {
-//         console.log('Speech started');
-//       };
-
-//       utterance.onend = () => {
-//         console.log('Speech ended');
-//         speaking = false;
-//       };
-//     });
-//   },
-//   { deep: true }
-// );
-
 onMounted(() => {
-  if (!window.speechSynthesis) {
-    console.error('Speech synthesis is not supported in this browser.');
-    return;
-  }
-
   fetchCurrentClients();
   fetchQueueList();
-  const intervalId = setInterval(fetchCurrentClients, 1000);
   const QueueList = setInterval(fetchQueueList, 1000);
 
   onUnmounted(() => {
-    clearInterval(intervalId);
     clearInterval(QueueList);
   });
 

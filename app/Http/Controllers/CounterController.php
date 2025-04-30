@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\CounterEvent;
 use App\Models\QueuesModel;
 use App\Models\Clients;
 use App\Events\ClientUpdated;
@@ -15,13 +16,12 @@ class CounterController extends Controller
     public function current_clients(Request $request)
     {
         $counterIds = [1, 2, 3, 4];
-        $allData = collect(); // Initialize an empty collection
+        $allData = collect();
 
         foreach ($counterIds as $id) {
             $results = DB::table('vw_counter_queue')
                 ->where('service_counter_id', $id)
-                ->where('status', 'serving')
-
+                ->whereIn('status', ['serving', 'waiting']) // Include 'waiting' as fallback
                 ->orderByRaw("
                 CASE 
                     WHEN priority_level = 'PWD' THEN 0
@@ -34,13 +34,12 @@ class CounterController extends Controller
                 ->limit(1)
                 ->get();
 
-            $allData = $allData->merge($results); // Merge each result into the collection
+            $allData = $allData->merge($results);
         }
 
-        return response()->json([
-            'data' => $allData,
-        ]);
+        return response()->json(['data' => $allData]);
     }
+
     public function queue_list(Request $request)
     {
         $data = DB::table('queues')
@@ -55,16 +54,28 @@ class CounterController extends Controller
     }
     public function update_client_transaction(Request $request)
     {
-        $queueId = $request->input('queue_id');
-        $status = $request->input('status');
+        $validated = $request->validate([
+            'queue_id' => 'required|integer',
+            'status' => 'required|string',
+        ]);
 
-        // Update the queue status
-        DB::table('queues')
-            ->where('id', $queueId)
-            ->update(['status' => $status, 'is_called' => 0]);
+        $client = QueuesModel::find($validated['queue_id']);
 
-        return response()->json(['message' => 'Queue status updated successfully']);
+        if ($client) {
+            $client->status = $validated['status'];
+            $client->is_called = 0;
+            $client->updated_at = now();
+            $client->save();
+
+            event(new CounterEvent($client->counter_id, "---", $client->status));
+
+            return response()->json(['message' => 'Queue status updated successfully']);
+        }
+
+
+        return response()->json(['message' => 'Client not found'], 404);
     }
+
     public function transaction(Request $request)
     {
         $counterId = $request->input('counter_id');
@@ -72,10 +83,10 @@ class CounterController extends Controller
         $priorityLevelId = $counterId == 2 ? 1 : 4;
 
         $prefix = match ($counterId) {
-            1 => 'L',
-            2 => 'P',
-            3 => 'D',
-            default => 'Q',
+            1 => 'D',
+            2 => 'E',
+            3 => 'N',
+            4 => 'R'
         };
 
         // Get latest queue number with matching prefix
@@ -86,7 +97,8 @@ class CounterController extends Controller
             ->first();
 
         if ($latestQueue && preg_match('/\d+/', $latestQueue->queue_number, $matches)) {
-            $nextNumber = str_pad(((int) $matches[0]) + 1, 2, '0', STR_PAD_LEFT);
+            $currentNumber = (int) $matches[0];
+            $nextNumber = $currentNumber >= 10 ? '01' : str_pad($currentNumber + 1, 2, '0', STR_PAD_LEFT);
         } else {
             $nextNumber = '01';
         }
@@ -107,17 +119,13 @@ class CounterController extends Controller
             'updated_at' => now(),
         ]);
 
-        // Retrieve latest client with queue
-        $client = Clients::whereHas('queues', function ($query) use ($counterId, $queueNumber) {
-            $query->where('counter_id', $counterId)
-                ->where('queue_number', $queueNumber);
-        })->with(['queues' => function ($q) use ($counterId, $queueNumber) {
-            $q->where('counter_id', $counterId)
-                ->where('queue_number', $queueNumber)
-                ->orderByDesc('id');
-        }])->first();
-
         // Fire event
+        $client = QueuesModel::where('counter_id', $counterId)
+            ->select('queues.id', 'queues.queue_number', 'queues.counter_id', 'counter_name', 'queues.status', 'queues.queued_at', 'queues.called_at')
+            ->leftJoin('service_counters as sc', 'queues.counter_id', '=', 'sc.id')
+            ->orderBy('updated_at', 'desc')
+            ->first();
+
         event(new ClientUpdated($client));
 
         return response()->json([
@@ -126,12 +134,10 @@ class CounterController extends Controller
             'counter_id' => $counterId,
         ]);
     }
-
-
-
+    
     public function recallClient(Request $request)
     {
-        $queue = QueuesModel::where('queue_number', $request->queue_id)->first();
+        $queue = QueuesModel::where('id', $request->queue_id)->first();
 
         if (!$queue) {
             return response()->json(['error' => 'Queue not found'], 404);

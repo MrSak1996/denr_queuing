@@ -21,7 +21,7 @@ const breadcrumbs: BreadcrumbItem[] = [
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex flex-col gap-4 p-4">
         <!-- <img :src="bgBanner" alt="Background Banner" /> -->
-            <admin_header />
+            <!-- <admin_header /> -->
             <div class="grid grid-cols-4 gap-4">
                 <admin_serving />
             </div>

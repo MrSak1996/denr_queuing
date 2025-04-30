@@ -2,7 +2,7 @@
 
 namespace App\Events;
 
-use App\Models\Clients;
+use App\Models\QueuesModel;
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
@@ -15,17 +15,18 @@ class ClientUpdated implements ShouldBroadcast
 
     public $client;
 
-    public function __construct(Clients $client)
+    public function __construct(QueuesModel $queue)
     {
-    
         $this->client = [
-            'queue_id' => $client->queues[0]->id ?? null,
-            'counter_id' => $client->queues[0]->counter_id ?? null,
-            'queue_number' => $client->queues[0]->queue_number ?? null,
-            'status' => $client->queues[0]->status ?? null,
-            'client_name' => $client->name, // or other needed fields
+            'counter_name' => $queue->counter_name ?? null,
+            'queue_id' => $queue->id ?? null,
+            'counter_id' => $queue->counter_id ?? null,
+            'queue_number' => $queue->queue_number ?? null,
+            'status' => $queue->status ?? null,
+            'queued_at' => $queue->queued_at ?? null,
         ];
     }
+    
 
     public function broadcastOn()
     {

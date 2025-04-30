@@ -1,7 +1,7 @@
 <?php
 
 namespace App\Http\Controllers;
-
+use App\Events\CounterEvent;
 use App\Models\QueuesModel;
 use App\Models\QueueLogs;
 use App\Models\Clients;
@@ -57,6 +57,8 @@ class ClientController extends Controller
 
         return response()->json($queues);
     }
+
+   
     public function updateStatus(Request $request)
     {
         $validated = $request->validate([
@@ -71,10 +73,13 @@ class ClientController extends Controller
             $client->is_called = 1;
             $client->called_at = Carbon::now();
             $client->save();
-
+            event(new CounterEvent($client->counter_id, $client->queue_number,$client->status));
+            //CounterEvent(4,RO3)
             return response()->json(['message' => 'Status updated successfully'], 200);
         }
+        
 
+        // return response()->json(['queue_number' => $queueNumber]);
         return response()->json(['message' => 'Client not found'], 404);
     }
     public function set_client_priority(Request $request)

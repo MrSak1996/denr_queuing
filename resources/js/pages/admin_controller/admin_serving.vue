@@ -1,21 +1,19 @@
 <script lang="ts" setup>
-import { ref, nextTick, onMounted } from 'vue';
 import { usePage } from '@inertiajs/vue3';
-import { useToast } from 'primevue/usetoast';
 import { useSpeechSynthesis } from '@vueuse/core';
 import axios from 'axios';
-import Echo from 'laravel-echo';
+import { useToast } from 'primevue/usetoast';
+import { nextTick, onMounted, ref } from 'vue';
 
 // PrimeVue Components
-import DataTable from 'primevue/datatable';
-import Column from 'primevue/column';
 import Chip from 'primevue/chip';
-import Fieldset from 'primevue/fieldset';
+import Column from 'primevue/column';
+import DataTable from 'primevue/datatable';
 
 // Modals
 import ModalTransfer from '@/pages/modal/modal_transfer.vue';
-import ModalPriority from '../modal/modal_priority.vue';
 import ModalHoldingArea from '../modal/modal_holding_area.vue';
+import ModalPriority from '../modal/modal_priority.vue';
 import ModalRecall from '../modal/modal_recall.vue';
 
 import { type SharedData, type User } from '@/types';
@@ -45,10 +43,8 @@ const { isSupported } = useSpeechSynthesis();
 
 const loadVoices = () => {
     const voices = window.speechSynthesis.getVoices();
-    const preferredVoices = voices.filter(voice =>
-        /female|hazel|zira|susan|samantha|siri/i.test(voice.name)
-    );
-    selectedVoice.value = preferredVoices[0] || voices.find(v => /en/i.test(v.lang)) || voices[0];
+    const preferredVoices = voices.filter((voice) => /female|hazel|zira|susan|samantha|siri/i.test(voice.name));
+    selectedVoice.value = preferredVoices[0] || voices.find((v) => /en/i.test(v.lang)) || voices[0];
 };
 
 if (window.speechSynthesis.onvoiceschanged !== undefined) {
@@ -60,7 +56,6 @@ loadVoices();
 
 const getClient = async (counterId: number) => {
     try {
-
         const { data } = await axios.get(`/api/clients?counter_id=${counterId}`);
         clients.value = data;
 
@@ -69,27 +64,25 @@ const getClient = async (counterId: number) => {
             queue_number: client.queue_number,
             status: client.status,
         }));
-        window.Echo.channel(`clients.counter.${counterId}`)
-            .listen('ClientUpdated', (e: any) => {
-                console.log('Client updated received:', e.client);
+        window.Echo.channel(`clients.counter.${counterId}`).listen('ClientUpdated', (e: any) => {
+            console.log('Client updated received:', e.client);
 
-                // Update the table or clients list
-                const index = clients.value.findIndex(c => c.queue_id === e.client.queue_id);
-                if (index !== -1) {
-                    clients.value[index] = e.client;
-                } else {
-                    clients.value.push(e.client);
-                }
+            // Update the table or clients list
+            const index = clients.value.findIndex((c) => c.queue_id === e.client.queue_id);
+            if (index !== -1) {
+                clients.value[index] = e.client;
+            } else {
+                clients.value.push(e.client);
+            }
 
-                queue.value = clients.value.slice(0, 2).map((client: any) => ({
-                    queue_id: client.queue_id,
-                    queue_number: client.queue_number,
-                    status: client.status,
-                }));
+            queue.value = clients.value.slice(0, 2).map((client: any) => ({
+                queue_id: client.queue_id,
+                queue_number: client.queue_number,
+                status: client.status,
+            }));
 
-                console.log('Updated client in table:', e.client);
-            });
-
+            console.log('Updated client in table:', e.client);
+        });
     } catch (error) {
         console.error('Error fetching client data:', error);
     }
@@ -102,7 +95,7 @@ const callNextClient = async () => {
     }
 
     const currentClient = clients.value[0];
-    currentClient.status = 'Completed';
+    // currentClient.status = 'Completed';
 
     try {
         await axios.post('/api/update-client-status', {
@@ -112,8 +105,7 @@ const callNextClient = async () => {
 
         clients.value.shift();
         queue.value.shift();
-        clients.value = [...clients.value]; // Refresh reactivity
-
+        clients.value = [...clients.value];
         await saveQueueLogs(currentClient.queue_id, currentClient.counter_name);
         await getClient(user.service_counter_id);
 
@@ -156,31 +148,6 @@ const setClientPriority = async (client: any, priorityLevel: number) => {
     }
 };
 
-const priorityLane = async () => {
-    if (currentPriorityIndex !== -1) {
-        queue.value[currentPriorityIndex].isPriorityLane = false;
-        await nextTick();
-    }
-
-    const nextPriorityNumber = priorityCounter++;
-    if (nextPriorityNumber <= maxQueue) {
-        queue.value.unshift({ number: nextPriorityNumber, isPriorityLane: true, isNormal: false });
-        currentPriorityIndex = 0;
-    }
-
-    const priorityItems = queue.value.filter(item => item.isPriorityLane).sort((a, b) => a.number - b.number);
-    const normalItems = queue.value.filter(item => item.isNormal);
-
-    queue.value = [...priorityItems, ...normalItems];
-};
-
-const clientOptions = (client: any) => [
-    { label: 'PWD', icon: 'pi pi-exclamation-circle', command: () => setClientPriority(client, 1) },
-    { label: 'Senior Citizen', icon: 'pi pi-user', command: () => setClientPriority(client, 2) },
-    { label: 'Pregnant Women', icon: 'pi pi-user-plus', command: () => setClientPriority(client, 3) },
-    { label: 'Regular Client', icon: 'pi pi-user-edit', command: () => setClientPriority(client, 4) },
-];
-
 const saveQueueLogs = async (queueId: number, counterName: string) => {
     try {
         await axios.post('/api/save_queue_logs', {
@@ -189,15 +156,6 @@ const saveQueueLogs = async (queueId: number, counterName: string) => {
         });
     } catch (error) {
         console.error('Error saving queue logs:', error);
-    }
-};
-
-const callClient = async (queueId: number) => {
-    try {
-        await axios.post('/api/recallClient', { queue_id: queueId });
-    } catch (error) {
-        console.error('Error recalling client:', error);
-        toast.add({ severity: 'error', summary: 'Error', detail: 'Could not call client', life: 3000 });
     }
 };
 
@@ -217,7 +175,6 @@ const onRowSelect = (event: any) => {
     toast.add({ severity: 'info', summary: 'Client Selected', detail: `Queue Number: ${event.data.queue_number}`, life: 3000 });
     transferModal.value = true;
 };
-
 
 const btn_call = async (queue_number) => {
     try {
@@ -258,21 +215,47 @@ const btn_call = async (queue_number) => {
         });
     }
 };
+
+const priorityLane = async () => {
+    if (currentPriorityIndex !== -1) {
+        queue.value[currentPriorityIndex].isPriorityLane = false;
+        await nextTick();
+    }
+
+    const nextPriorityNumber = priorityCounter++;
+    if (nextPriorityNumber <= maxQueue) {
+        queue.value.unshift({ number: nextPriorityNumber, isPriorityLane: true, isNormal: false });
+        currentPriorityIndex = 0;
+    }
+
+    const priorityItems = queue.value.filter((item) => item.isPriorityLane).sort((a, b) => a.number - b.number);
+    const normalItems = queue.value.filter((item) => item.isNormal);
+
+    queue.value = [...priorityItems, ...normalItems];
+};
+
+const clientOptions = (client: any) => [
+    { label: 'PWD', icon: 'pi pi-exclamation-circle', command: () => setClientPriority(client, 1) },
+    { label: 'Senior Citizen', icon: 'pi pi-user', command: () => setClientPriority(client, 2) },
+    { label: 'Pregnant Women', icon: 'pi pi-user-plus', command: () => setClientPriority(client, 3) },
+    { label: 'Regular Client', icon: 'pi pi-user-edit', command: () => setClientPriority(client, 4) },
+];
+
+const callClient = async (queueId: number) => {
+    try {
+        await axios.post('/api/recallClient', { queue_id: queueId });
+    } catch (error) {
+        console.error('Error recalling client:', error);
+        toast.add({ severity: 'error', summary: 'Error', detail: 'Could not call client', life: 3000 });
+    }
+};
 // === LIFECYCLE ===
 onMounted(() => {
-
-    window.Echo.channel(`clients.counter.1`)
-        .listen('ClientUpdated', (e: any) => {
-            console.log('Client updated received:', e.client); // Make sure this logs
-        });
-
     const counterId = user.service_counter_id ?? 1;
     getClient(counterId);
     startServingTimer();
 });
 </script>
-
-
 
 <template>
     <div class="col-span-1 flex flex-col items-center justify-start gap-4">
@@ -281,77 +264,94 @@ onMounted(() => {
             @close="transferModal = false"></ModalTransfer>
         <ModalPriority v-if="priorityModal" :counterId="user.service_counter_id" :queue="selectedProduct"
             :open="priorityModal" @close="priorityModal = false"></ModalPriority>
-        <ModalHoldingArea> v-if="holdingModal" :counterId="user.service_counter_id" :queue="selectedProduct"
-            :open="holdingModal" @close="holdingModal = false"></ModalHoldingArea>
+        <ModalHoldingArea>
+            v-if="holdingModal" :counterId="user.service_counter_id" :queue="selectedProduct" :open="holdingModal"
+            @close="holdingModal =
+            false"></ModalHoldingArea>
         <ModalRecall v-if="recallModal" :counterId="user.service_counter_id" :queue="selectedProduct"
             :open="recallModal" @close="recallModal = false"></ModalRecall>
 
+        <div class="flex w-full flex-col items-center gap-4">
+            <transition-group v-if="queue.length > 0" name="fade-slide" tag="div"
+                class="flex w-full flex-col items-center gap-4">
+                <div v-for="(pac, index) in queue" :key="pac.queue_id + '-' + pac.isPriorityLane"
+                    class="w-full max-w-lg rounded border p-6 text-center shadow"
+                    :class="pac.isPriorityLane ? 'bg-yellow-200' : 'bg-gray-50'">
+                    <div class="flex flex-col items-center gap-2">
+                        <div v-if="index === 0" class="text-sm font-semibold text-green-600">Current Serving</div>
+                        <div class="text-lg font-bold text-blue-900">Token Number</div>
 
-        <transition-group name="fade-slide" tag="div" class="flex w-full flex-col items-center gap-4">
-            <div v-for="(pac, index) in queue" :key="pac.queue_id + '-' + pac.isPriorityLane"
-                class="w-full max-w-lg rounded border p-6 text-center shadow"
-                :class="pac.isPriorityLane ? 'bg-yellow-200' : 'bg-gray-50'">
+                        <div class="mt-2 rounded-lg border-4 border-green-500 px-10 py-6 text-6xl font-bold"
+                            :class="pac.isPriorityLane ? 'text-blue-800' : 'text-green-500'">
+                            {{ pac.queue_number }}
+                        </div>
+
+                        <div v-if="index === 0" class="mt-2 text-sm font-semibold text-blue-900">Serving Time</div>
+                        <div v-if="index === 0" class="text-2xl font-bold text-blue-900">
+                            {{ servingTime }}
+                        </div>
+
+                        <button
+                            class="mt-4 w-24 rounded-md bg-[#1a2d42] py-2 text-sm font-bold text-white transition-all hover:brightness-110"
+                            @click="callNextClient">
+                            {{ pac.status.toUpperCase() }}
+                        </button>
+                    </div>
+                </div>
+            </transition-group>
+
+            <div v-else class="w-full max-w-lg rounded border bg-gray-100 p-6 text-center text-gray-500 shadow">
                 <div class="flex flex-col items-center gap-2">
-                    <div v-if="index === 0" class="text-sm font-semibold text-green-600">Current Serving</div>
-                    <div class="text-lg font-bold text-blue-900">Token Number</div>
-
-                    <div class="mt-2 rounded-lg border-4 border-green-500 px-10 py-6 text-6xl font-bold"
-                        :class="pac.isPriorityLane ? 'text-blue-800' : 'text-green-500'">
-                        {{ pac.queue_number }}
-                    </div>
-
-                    <div v-if="index === 0" class="mt-2 text-sm font-semibold text-blue-900">Serving Time</div>
-                    <div v-if="index === 0" class="text-2xl font-bold text-blue-900">
-                        {{ servingTime }}
-                    </div>
-
-                    <button
-                        class="mt-4  w-24 rounded-md bg-[#1a2d42] py-2 text-sm font-bold text-white transition-all hover:brightness-110"
-                        @click="callNextClient">
-                        {{ pac.status.toUpperCase() }}
-                    </button>
+                    <div class="text-xl font-semibold">No clients in queue</div>
+                    <div class="text-sm">Please wait for the next client to arrive.</div>
                 </div>
             </div>
-        </transition-group>
-
+        </div>
     </div>
 
     <!-- CONTROLS -->
     <div class="col-span-3 flex max-w-full flex-col gap-4">
-        <div class="flex flex-col md:flex-row gap-5 rounded-xl text-slate-900 h-screen">
-            <div
-                class="flex-1 overflow-hidden rounded p-4 shadow max-h-[100vh] w-full   border  text-center  bg-gray-50">
-
+        <div class="flex h-screen flex-col gap-5 rounded-xl text-slate-900 md:flex-row">
+            <div class="max-h-[100vh] w-full flex-1 overflow-hidden rounded border bg-gray-50 p-4 text-center shadow">
                 <DataTable v-model:selection="selectedProduct" :value="clients" selectionMode="single" size="small"
                     paginator showGridlines :rows="20" filterDisplay="menu" scrollable scrollHeight="flex"
                     dataKey="queue_number" :metaKeySelection="false" @rowSelect="onRowSelect">
-
                     <Column field="counter_name" header="Counter"></Column>
-                    <Column field="queue_number" header="Queue No.">
-                        {{ data.queue_number }}
-                    </Column>
-                    <!-- <Column field="priority_level" header="Priority Level">
+                    <template #empty>
+                        <div class="flex flex-col items-center justify-center py-6 text-gray-500">
+                            <svg class="w-12 h-12 mb-2 text-gray-400" fill="none" stroke="currentColor" stroke-width="2"
+                                viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                    d="M9 17v-2a4 4 0 014-4h6M9 17H7a4 4 0 01-4-4V7a4 4 0 014-4h6a4 4 0 014 4v6a4 4 0 01-4 4H9z" />
+                            </svg>
+                            <div class="text-lg font-semibold">No clients found</div>
+                            <div class="text-sm">Please wait for new clients to appear in the queue.</div>
+                        </div>
+                    </template>
+                    <Column field="queue_number" header="Queue No."> {{ data.queue_number }} </Column>
+                    <Column field="priority_level" header="Priority Level" class="w-[80px]">
                         <template #body="{ data }">
                             <Chip class="py-0 pl-0 pr-4">
                                 <span :class="data.priority_level === 'PWD' || data.priority_level == 'Senior'
-                                    ? 'bg-orange-500 text-white'
-                                    : 'bg-gradient-to-b from-[#2E4156] to-[#1A2D42] text-white'"
+                                        ? 'bg-orange-500 text-white'
+                                        : 'bg-gradient-to-b from-[#2E4156] to-[#1A2D42] text-white'
+                                    "
                                     class="text-primary-contrast flex h-8 w-8 items-center justify-center rounded-full">
-                                    {{ data.priority_level.charAt(0) }}
+                                    <!-- {{ data.priority_level.charAt(0) }} -->
                                 </span>
-                                <span class="ml-2 font-medium">{{ data.priority_level }}</span>
+                                <!-- <span class="ml-2 font-medium">{{ data.priority_level }}</span> -->
                             </Chip>
                         </template>
-</Column> -->
+                    </Column>
                     <Column field="status" header="Status"></Column>
                     <Column field="queued_at" header="Date/Time"></Column>
-                    <Column header="Action" style="width: 130px;">
+                    <Column header="Action" style="width: 130px">
                         <template #body="{ data }">
                             <!-- <SplitButton label="Set Priority" dropdownIcon="pi pi-cog" :model="items(data)" class="mr-2"/> -->
                             <Button icon="pi pi-check" aria-label="Save" @click="completeTransaction"
                                 class="p-button-sm mr-2" />
-                            <Button severity="warn" icon="pi pi-megaphone" aria-label="Save"
-                                @click="btn_call(data.queue_number)" class="p-button-sm mr-2" />
+                            <Button severity="warn" icon="pi pi-megaphone" aria-label="Save" @click="btn_call(data.queue_id)"
+                                class="p-button-sm mr-2" />
                             <Button severity="danger" icon="pi pi-arrow-circle-right" aria-label="Save"
                                 class="p-button-sm" />
                         </template>
@@ -359,26 +359,18 @@ onMounted(() => {
                 </DataTable>
             </div>
 
-            <div class="w-full md:w-1/4 p-4  bg-gray-50 rounded shadow flex flex-col gap-5 border" style="height: 100%">
+            <div class="flex w-full flex-col gap-5 rounded border bg-gray-50 p-4 shadow md:w-1/4" style="height: 100%">
                 <div class="grid grid-cols-1 gap-3">
-                    <button @click="callNextClient" class="button-action">
-                        <i class="pi pi-forward mb-1 text-base"></i> NEXT
-                    </button>
-                    <button @click="priorityModal = true" class="button-action">
-                        <i class="pi pi-star mb-1 text-base"></i> PRIORITY
-                    </button>
-                    <button @click="transferModal = true" class="button-action">
-                        <i class="pi pi-share-alt mb-1 text-base"></i> TRANSFER
-                    </button>
-                    <!-- <button @click="holdingModal = true" class="button-action">
-                        <i class="pi pi-pause mb-1 text-base"></i> HOLD
-                    </button> -->
-                    <button @click="recallModal = true" class="button-action">
-                        <i class="pi pi-refresh mb-1 text-base"></i> CALL AGAIN
-                    </button>
-                    <button @click="callNextClient" class="button-action">
-                        <i class="pi pi-exclamation-triangle mb-1 text-base"></i> ERROR
-                    </button>
+                    <button @click="callNextClient" class="button-action"><i class="pi pi-forward mb-1 text-base"></i>
+                        NEXT</button>
+                    <button @click="priorityModal = true" class="button-action"><i
+                            class="pi pi-star mb-1 text-base"></i>
+                        PRIORITY</button>
+                    <button @click="transferModal = true" class="button-action"><i
+                            class="pi pi-share-alt mb-1 text-base"></i>
+                        TRANSFER</button>
+
+
                 </div>
                 <!-- <Fieldset legend="Holding Area">
                     <DataTable showGridlines size="small" :value="clients" :column="5" scrollHeight="30vh"
@@ -416,7 +408,6 @@ onMounted(() => {
     background-color: #e0f2fe !important;
     /* Light blue */
 }
-
 
 .button-action {
     @apply flex flex-col items-center justify-center rounded-xl bg-gradient-to-b from-[#2E4156] to-[#1A2D42] p-3 text-sm font-bold text-white shadow-md transition-all hover:brightness-110;

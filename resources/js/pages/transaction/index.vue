@@ -73,6 +73,12 @@ const btn_transaction = async (counterId) => {
                     </Button>
                 </div>
 
+                <div class="flex w-full justify-center">
+                    <Button class="h-[100px] w-full border !bg-gradient-to-r from-blue-950 to-green-700 text-white md:w-1/2" @click="btn_transaction(4)">
+                        <label class="text-[40px] font-extrabold md:text-[65px]">PERMITTING SERVICES</label>
+                    </Button>
+                </div>
+
                
             </div>
         </div>
