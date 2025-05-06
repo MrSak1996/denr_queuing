@@ -352,8 +352,8 @@ onMounted(() => {
                                 class="p-button-sm mr-2" />
                             <Button severity="warn" icon="pi pi-megaphone" aria-label="Save" @click="btn_call(data.queue_id)"
                                 class="p-button-sm mr-2" />
-                            <Button severity="danger" icon="pi pi-arrow-circle-right" aria-label="Save"
-                                class="p-button-sm" />
+                            <!-- <Button severity="danger" icon="pi pi-arrow-circle-right" aria-label="Save"
+                                class="p-button-sm" /> -->
                         </template>
                     </Column>
                 </DataTable>

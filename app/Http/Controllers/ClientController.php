@@ -51,6 +51,7 @@ class ClientController extends Controller
                 ELSE 3
             END
         ")
+        ->orderByRaw('CASE WHEN p.id = 1 THEN 0 ELSE 1 END') 
             ->orderBy('queues.queued_at', 'asc')
             ->get();
 

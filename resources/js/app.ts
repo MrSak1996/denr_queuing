@@ -10,8 +10,8 @@ window.Echo = new Echo({
     broadcaster: 'pusher',
     key: import.meta.env.VITE_PUSHER_APP_KEY,   // <-- key
     cluster: import.meta.env.VITE_PUSHER_APP_CLUSTER, // <-- cluster
-    forceTLS: true,
-    encrypted: true,
+    forceTLS: false,
+    encrypted: false,
 });
 
 

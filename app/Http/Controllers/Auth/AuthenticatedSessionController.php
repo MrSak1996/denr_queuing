@@ -33,17 +33,20 @@ class AuthenticatedSessionController extends Controller
     {
         // Attempt to authenticate the user
         if (Auth::attempt(['email' => $request->email, 'password' => $request->password])) {
-            // After successful authentication, get the authenticated user
             $user = Auth::user();
-
-            // Insert 50 items into tbl_clients
-            // $this->insertClientItems($user->service_counter_id);
-
-            // Regenerate the session
+        
             $request->session()->regenerate();
-
-            return redirect()->intended(route('dashboard', absolute: false));
+        
+            if ($user->user_role === 'admin') {
+                return redirect()->route('dashboard');
+            } elseif ($user->user_role === 'user') {
+                return redirect()->route('transaction.index');  // named route preferred
+            }
+        
+            // Optional: fallback redirect (if role is something else)
+            return redirect()->route('dashboard');
         }
+        
 
         // If authentication fails, return to the login page with errors
         return back()->withErrors(['email' => 'These credentials do not match our records.']);

@@ -9,7 +9,7 @@ import modal_generate_queue from '../modal/modal_generate_queue.vue';
 const open = ref(false);
 const queue_number = ref('');
 const counter_id = ref('');
-
+const counter_name = ref('');
 const breadcrumbs: BreadcrumbItem[] = [
     {
         title: 'Transaction',
@@ -19,15 +19,14 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 const btn_transaction = async (counterId) => {
     try {
+        counter_name.value = counterId
         const response = await axios.post('/api/transaction', {
             counter_id: counterId,
         });
 
-        const { message, queue_number: qNum, coumter_id: cId } = response.data;
-
+        const { message, queue_number: qNum} = response.data;
         if (message) {
             queue_number.value = qNum;
-            counter_id.value = cId;
             open.value = true; // Show modal
         } else {
             console.warn('Response received but no message found.');
@@ -43,7 +42,7 @@ const btn_transaction = async (counterId) => {
 <template>
     <modal_generate_queue 
     v-if="open"
-    :counterId="counter_id"
+    :counterId="counter_name"
     :queue_no="queue_number"
     :open="open" 
     @close="open = false">

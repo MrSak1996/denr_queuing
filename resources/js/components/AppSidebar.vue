@@ -4,27 +4,35 @@ import NavMain from '@/components/NavMain.vue';
 import NavUser from '@/components/NavUser.vue';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { type NavItem } from '@/types';
-import { Link } from '@inertiajs/vue3';
-import { BookOpen, Folder, LayoutGrid,Monitor,GalleryHorizontal } from 'lucide-vue-next';
+import { Link, usePage } from '@inertiajs/vue3';
+import { BookOpen, Folder, LayoutGrid, Monitor, GalleryHorizontal } from 'lucide-vue-next';
 import AppLogo from './AppLogo.vue';
 
-const mainNavItems: NavItem[] = [
-    {
+// Get logged-in user role from Inertia page props
+const page = usePage();
+const userRole = page.props.auth.user.user_role as string;  // assuming role is 'admin' or 'user'
+
+// Initialize main nav items
+const mainNavItems: NavItem[] = [];
+
+if (userRole === 'admin') {
+    mainNavItems.push({
         title: 'Dashboard',
         href: '/dashboard',
         icon: LayoutGrid,
-    },
-    {
+    });
+    mainNavItems.push({
         title: 'Client',
         href: '/client/index',
         icon: Monitor,
-    },
-    {
+    });
+} else if (userRole === 'user') {
+    mainNavItems.push({
         title: 'Transaction Type',
         href: '/transaction/index',
         icon: GalleryHorizontal,
-    },
-];
+    });
+}
 
 const footerNavItems: NavItem[] = [
     // {

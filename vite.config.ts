@@ -8,9 +8,12 @@ import { defineConfig } from 'vite';
 
 export default defineConfig({
     server: {
-        host: '0.0.0.0',
-        port: 5173,
+        host: '0.0.0.0',   // <-- bind to all interfaces
+        port: 5173,        // optional (default is 5173)
         strictPort: true,
+        hmr: {
+            host: '10.201.13.36',  // <-- your actual machine IP address
+        },
     },
     plugins: [
         laravel({

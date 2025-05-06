@@ -11,7 +11,7 @@ const props = defineProps({
         default: false,
     },
     counterId:{
-        type: Number,
+        type: String,
     },
     queue_no:{
         type: String,
