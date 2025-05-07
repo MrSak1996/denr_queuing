@@ -5,6 +5,7 @@ use App\Events\CounterEvent;
 use App\Models\QueuesModel;
 use App\Models\QueueLogs;
 use App\Models\Clients;
+use App\Events\ClientUpdated;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 use Inertia\Inertia;
@@ -33,6 +34,7 @@ class ClientController extends Controller
             ->select(
                 'queues.id as queue_id',
                 'queues.queue_number',
+                'queues.priority_level_id',
                 'p.level_name as priority_level',
                 'c.full_name',
                 'c.id as client_id',
@@ -86,15 +88,16 @@ class ClientController extends Controller
     public function set_client_priority(Request $request)
     {
         $validated = $request->validate([
-            'client_id' => 'required|integer',
+            'id' => 'required|integer',
             'priority_level_id' => 'required|integer',  // e.g., 'Completed'
         ]);
 
-        $client = QueuesModel::find($validated['client_id']); // Assuming Client is your model
+        $client = QueuesModel::find($validated['id']); // Assuming Client is your model
 
         if ($client) {
             $client->priority_level_id = $validated['priority_level_id'];
             $client->save();
+            event(new ClientUpdated($client));
 
             return response()->json(['message' => 'Priority Level updated successfully'], 200);
         }
@@ -124,6 +127,7 @@ class ClientController extends Controller
     {
         $counters = DB::table('service_counters')
             ->select('service_counters.id as counter_id', 'service_counters.counter_name')
+            ->limit(4)
             ->get();
 
         return response()->json($counters);
@@ -138,11 +142,16 @@ class ClientController extends Controller
         $client = QueuesModel::find($validated['queue_id']); // Assuming Client is your model
 
         if ($client) {
+            $oldCounterId = $client->counter_id; // Save old counter
+        
             $client->counter_id = $validated['selectedCounter'];
             $client->save();
-
+        
+            event(new ClientUpdated($client, $oldCounterId));
+        
             return response()->json(['message' => 'Transfer completed successfully'], 200);
         }
+        
 
         return response()->json(['message' => 'Client not found'], 404);
     }

@@ -70,16 +70,20 @@ const set_client_priority = async (client: any, priority_level: any) => {
     try {
         await axios.post('/api/set_client_priority',
             {
-                client_id: client.client_id,
+                id: client.queue_id,
                 priority_level_id: priority_level
             });
-        clients.value.shift();
+        
+        // Remove the clicked client, not just the first one
+        clients.value = clients.value.filter(c => c.client_id !== client.client_id);
+
         toast.add({ severity: 'success', summary: 'Priority Set', detail: 'Client set to priority lane', life: 3000 });
     } catch (error) {
         console.error('Error setting client priority:', error);
         toast.add({ severity: 'error', summary: 'Error', detail: 'Could not set client to priority lane', life: 3000 });
     }
 };
+
 const closeModal = () => {
     emit('close');
 };

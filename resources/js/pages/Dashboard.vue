@@ -2,6 +2,8 @@
 import AppLayout from '@/layouts/AppLayout.vue';
 import admin_header from '@/pages/admin_controller/admin_header.vue';
 import admin_serving from '@/pages/admin_controller/admin_serving.vue';
+import client_footer from './client/client_footer.vue';
+
 import { type BreadcrumbItem } from '@/types';
 import { Head } from '@inertiajs/vue3';
 import bgBanner from '../../images/bg2.png';
@@ -25,6 +27,8 @@ const breadcrumbs: BreadcrumbItem[] = [
             <div class="grid grid-cols-4 gap-4">
                 <admin_serving />
             </div>
+            <client_footer/>
+
         </div>
     </AppLayout>
 </template>

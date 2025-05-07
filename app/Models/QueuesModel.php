@@ -41,4 +41,6 @@ class QueuesModel extends Model
     {
         return $this->belongsTo(ServiceCounter::class);
     }
+
+    
 }

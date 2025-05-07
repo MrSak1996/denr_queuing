@@ -1,7 +1,7 @@
 <script lang="ts" setup>
-import axios from 'axios';
-import { onMounted, onUnmounted, ref, watch } from 'vue';
 import { useSpeechSynthesis } from '@vueuse/core';
+import axios from 'axios';
+import { onMounted, ref } from 'vue';
 import bg3 from '../../../images/bg3.png';
 import bg4 from '../../../images/bg4.png';
 import bg5 from '../../../images/bg5.png';
@@ -26,19 +26,13 @@ const counters = ref<CounterClient[]>([]);
 const selectedVoice = ref<SpeechSynthesisVoice | null>(null);
 const loadVoices = () => {
   const voices = window.speechSynthesis.getVoices();
-  const preferredVoices = voices.filter((voice) =>
-    /female|hazel|zira|susan|samantha|siri/i.test(voice.name)
-  );
-  selectedVoice.value = preferredVoices[0] || voices.find(v => /en/i.test(v.lang)) || voices[0];
+  const preferredVoices = voices.filter((voice) => /female|hazel|zira|susan|samantha|siri/i.test(voice.name));
+  selectedVoice.value = preferredVoices[0] || voices.find((v) => /en/i.test(v.lang)) || voices[0];
 };
 if (window.speechSynthesis.onvoiceschanged !== undefined) {
   window.speechSynthesis.onvoiceschanged = loadVoices;
 }
 loadVoices();
-
-
-
-
 
 const fetchCurrentClients = async () => {
   try {
@@ -53,27 +47,23 @@ const fetchCurrentClients = async () => {
 
     // Subscribe to WebSocket channels for each counter
     counterIds.forEach((id) => {
-      window.Echo.channel(`client.counter.${id}`)
-        .listen('.CounterEvent', (e: any) => {
-          const updatedCounterId = e.service_counter_id;
-          const updatedQueueNumber = e.queue_number;
+      window.Echo.channel(`client.counter.${id}`).listen('.CounterEvent', (e: any) => {
+        const updatedCounterId = e.service_counter_id;
+        const updatedQueueNumber = e.queue_number;
 
-          const index = counters.value.findIndex(
-            (counter) => counter.service_counter_id === updatedCounterId
-          );
+        const index = counters.value.findIndex((counter) => counter.service_counter_id === updatedCounterId);
 
-          if (index !== -1) {
-            counters.value[index].queue_number = updatedQueueNumber;
-            // counters.value[index].status = e.status; // if needed
-          } else {
-            counters.value.push({
-              service_counter_id: updatedCounterId,
-              queue_number: updatedQueueNumber,
-              // status: e.status, // if needed
-            });
-          }
-        });
-
+        if (index !== -1) {
+          counters.value[index].queue_number = updatedQueueNumber;
+          // counters.value[index].status = e.status; // if needed
+        } else {
+          counters.value.push({
+            service_counter_id: updatedCounterId,
+            queue_number: updatedQueueNumber,
+            // status: e.status, // if needed
+          });
+        }
+      });
     });
   } catch (error) {
     console.error('Error fetching counters:', error);
@@ -100,9 +90,7 @@ const fetchQueueList = async () => {
 
       // Speak only if `called_at` is new or updated
       if (lastSpokenTimestamp === calledAt) return;
-      const utterance = new SpeechSynthesisUtterance(
-        `Queue number ${currentNumber}, please proceed to counter ${counterId || 1}.`
-      );
+      const utterance = new SpeechSynthesisUtterance(`Queue number ${currentNumber}, please proceed to counter ${counterId || 1}.`);
 
       if (selectedVoice.value) {
         utterance.voice = selectedVoice.value;
@@ -124,42 +112,45 @@ const fetchQueueList = async () => {
         speaking = false;
       };
     });
-
   } catch (error) {
     console.error('Error fetching queue list:', error);
   }
 };
 
-
 onMounted(() => {
   fetchCurrentClients();
   fetchQueueList();
-  const QueueList = setInterval(fetchQueueList, 1000);
+  // const QueueList = setInterval(fetchQueueList, 1000);
 
-  onUnmounted(() => {
-    clearInterval(QueueList);
-  });
+  // onUnmounted(() => {
+  //   clearInterval(QueueList);
+  // });
 
-  let index = 0;
-  setInterval(() => {
-    index = (index + 1) % images.length;
-    currentBg.value = images[index];
-  }, 5000);
+  // let index = 0;
+  // setInterval(() => {
+  //   index = (index + 1) % images.length;
+  //   currentBg.value = images[index];
+  // }, 5000);
 });
 </script>
 
 <template>
-  <div class="grid grid-cols-4 gap-6">
-    <div v-for="counter in counters" :key="counter.service_counter_id"
+  <div class="grid grid-cols-3 gap-6">
+    <div v-for="counter in counters.slice(0, 3)" :key="counter.service_counter_id"
       class="mx-2 inline-block h-24 rounded-sm bg-[#0d4917] p-3 shadow-md">
       <div class="text-center text-6xl font-semibold leading-none text-white">
-        {{ 'COUNTER ' + counter.service_counter_id }}
+        {{ counter.counter_name }}
       </div>
-      <div class="mt-4">
+      <div v-if="(counter.service_counter_id == 1)">
+        <span class="text-white">(LICENSED, PERMITTING, CERTIFICATION AND OTHER CONCERNS)</span>
+      </div>
+      <div class="mt-1">
         <div class="flex items-center justify-center">
           <div
-            class="mt-3 rounded-lg border-4 border-[#0d4917] bg-white px-2 py-1 text-[150px] font-bold leading-none text-[#132b57]">
-            {{ counter.queue_number ?? '----' }}
+            class="rounded-lg border-4 border-[#0d4917] bg-white px-2 py-1 text-[190px] font-bold leading-none text-[#132b57]"
+            :class="{ 'mt-6': counter.service_counter_id === 2 || counter.service_counter_id === 3 }">
+            {{ counter.queue_number }}
+
           </div>
         </div>
       </div>
@@ -170,8 +161,7 @@ onMounted(() => {
       <!-- Left Content -->
       <div
         class="h-[500px] w-full flex-1 overflow-hidden rounded border bg-cover bg-center p-4 text-center text-white shadow transition-all duration-1000 ease-in-out"
-        :style="{ backgroundImage: `url(${currentBg})` }">
-      </div>
+        :style="{ backgroundImage: `url(${currentBg})` }"></div>
 
       <!-- Right Sidebar -->
       <div class="flex w-full flex-col gap-0 rounded px-6 py-5 text-center md:w-1/3" v-for="queue in queueList"
@@ -181,7 +171,7 @@ onMounted(() => {
           {{ queue.queue_number }}
         </div>
         <div class="rounded-lg bg-slate-900 px-4 py-2 text-6xl text-white">
-          Please proceed to <span class="font-bold">COUNTER {{ queue.counter_id }}</span>
+          Please proceed to <span class="font-bold">{{ queue.counter_name }}</span>
         </div>
       </div>
     </div>

@@ -6,27 +6,23 @@ const emit = defineEmits(['close', 'proceed']);
 const clients = ref<any[]>([]);
 
 const props = defineProps({
-    open: {
-        type: Boolean,
-        default: false,
-    },
-    counterId:{
-        type: String,
-    },
-    queue_no:{
-        type: String,
-    }
+    queueGen: { type: Boolean, default: false },
+    counterId: { type: Number },
+    queue_no: { type: String }
 });
+
+
+
 
 const closeModal = () => {
     emit('close');
 };
 
-onMounted(() => { });
+onMounted(() => { console.log("a")});
 </script>
 
 <template>
-    <div v-if="open" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50" role="dialog"
+    <div v-if="queueGen" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50" role="dialog"
         tabindex="-1" aria-labelledby="progress-modal">
         <div
             class="mx-4 w-full max-w-lg transform rounded-xl border bg-white shadow-sm transition-transform duration-500 dark:border-neutral-700 dark:bg-neutral-800">

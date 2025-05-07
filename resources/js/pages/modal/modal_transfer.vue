@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import { ref, onMounted } from 'vue';
 import MultiSelect from 'primevue/multiselect';
+import Select from 'primevue/select';
 import axios from 'axios';
 const emit = defineEmits(['close', 'proceed']);
 const selectedCounter = ref([])
@@ -34,7 +35,7 @@ const closeModal = () => {
 const btn_transfer = async () => {
     try {
         const response = await axios.post('/api/transfer-client', {
-            selectedCounter: selectedCounter.value[0].value,
+            selectedCounter: selectedCounter.value.value,
             queue_id: props.queue.queue_id,
         });
         if (response.status === 200) {
@@ -75,16 +76,15 @@ onMounted(() => {
                         Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy
                         text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It ha
                     </div>
-                    <MultiSelect
-                        display="chip"
-                        v-model="selectedCounter"
-                        :options="counter_opts"
-                        optionLabel="name"
-                        filter
-                        placeholder="Select Counter Number"
-                        :maxSelectedLabels="3"
-                        class="w-full"
+                    <Select
+                    v-model="selectedCounter"
+                    :options="counter_opts"
+                    optionLabel="name"
+                    class="w-full"
+                    placeholder="Select Counter Number"
+                    filter
                     />
+                  
                     <Button label="Transfer Client" severity="success" @click="btn_transfer()" />
 
                 </div>
