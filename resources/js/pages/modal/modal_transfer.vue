@@ -1,6 +1,8 @@
 <script lang="ts" setup>
 import { ref, onMounted } from 'vue';
 import MultiSelect from 'primevue/multiselect';
+import { useToast } from 'primevue/usetoast';
+
 import Select from 'primevue/select';
 import axios from 'axios';
 const emit = defineEmits(['close', 'proceed']);
@@ -15,6 +17,7 @@ const props = defineProps({
         type: Object,
     },
 });
+const toast = useToast();
 
 const get_counter_opts = async () => {
     try {
@@ -44,6 +47,13 @@ const btn_transfer = async () => {
         } else {
             console.error('Error transferring client:', response.data);
         }
+
+        
+        toast.add({
+            severity: 'info',
+            summary: 'Client Transferred',
+            life: 3000,
+        });
     } catch (error) {
         console.error('Error transferring client:', error);
     }

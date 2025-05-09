@@ -1,7 +1,10 @@
 <?php
 
 namespace App\Http\Controllers;
+
 use App\Events\CounterEvent;
+use App\Events\QueueListUpdated;
+use App\Events\ClientTransferred;
 use App\Models\QueuesModel;
 use App\Models\QueueLogs;
 use App\Models\Clients;
@@ -53,7 +56,7 @@ class ClientController extends Controller
                 ELSE 3
             END
         ")
-        ->orderByRaw('CASE WHEN p.id = 1 THEN 0 ELSE 1 END') 
+            ->orderByRaw('CASE WHEN p.id = 1 THEN 0 ELSE 1 END')
             ->orderBy('queues.queued_at', 'asc')
             ->get();
 
@@ -61,7 +64,7 @@ class ClientController extends Controller
         return response()->json($queues);
     }
 
-   
+
     public function updateStatus(Request $request)
     {
         $validated = $request->validate([
@@ -76,11 +79,20 @@ class ClientController extends Controller
             $client->is_called = 1;
             $client->called_at = Carbon::now();
             $client->save();
-            event(new CounterEvent($client->counter_id, $client->queue_number,$client->status));
+            event(new CounterEvent($client->counter_id, $client->queue_number, $client->status));
+
+
+            $cur_counter = QueuesModel::where('counter_id', $client->counter_id)
+                ->select('queues.id', 'queues.priority_level_id', 'queues.queue_number', 'queues.counter_id', 'counter_name', 'queues.status', 'queues.queued_at', 'queues.called_at')
+                ->leftJoin('service_counters as sc', 'queues.counter_id', '=', 'sc.id')
+                ->orderBy('updated_at', 'desc')
+                ->first();
+            event(new QueueListUpdated($cur_counter['counter_name'], $cur_counter['queue_number'], $cur_counter['called_at']));
+
             //CounterEvent(4,RO3)
             return response()->json(['message' => 'Status updated successfully'], 200);
         }
-        
+
 
         // return response()->json(['queue_number' => $queueNumber]);
         return response()->json(['message' => 'Client not found'], 404);
@@ -127,7 +139,7 @@ class ClientController extends Controller
     {
         $counters = DB::table('service_counters')
             ->select('service_counters.id as counter_id', 'service_counters.counter_name')
-            ->limit(4)
+            ->limit(3)
             ->get();
 
         return response()->json($counters);
@@ -139,39 +151,66 @@ class ClientController extends Controller
             'selectedCounter' => 'required|integer',
         ]);
 
-        $client = QueuesModel::find($validated['queue_id']); // Assuming Client is your model
+        $client = QueuesModel::with('service_counter')->find($validated['queue_id']); // eager load current counter
+        
 
         if ($client) {
-            $oldCounterId = $client->counter_id; // Save old counter
-        
+            $oldCounterId = $client->counter_id;
+            $oldCounterName = optional($client->service_counter)->counter_name ?? 'Unknown';
+
+            // Change counter
             $client->counter_id = $validated['selectedCounter'];
             $client->save();
-        
-            event(new ClientUpdated($client, $oldCounterId));
-        
-            return response()->json(['message' => 'Transfer completed successfully'], 200);
+
+            // Get new counter name
+            $newCounter = \App\Models\ServiceCounter::find($validated['selectedCounter']);
+            $newCounterName = optional(value: $newCounter)->counter_name ?? 'Unknown';
+
+            $client = QueuesModel::find($validated['queue_id']); // Assuming Client is your model
+            event(new CounterEvent($client->counter_id, "---", $client->status));
+
+            // ✅ Fire event to notify admin
+            event(new ClientTransferred(
+                $client->queue_number,
+                $oldCounterId,
+                $oldCounterName,
+                $client->counter_id,
+                $newCounterName
+            ));
+
+
+            return response()->json([
+                'message' => 'Transfer completed successfully',
+                'queue_number' => $client->queue_number,
+                'old_counter_name' => $oldCounterName,
+                'new_counter_name' => $newCounterName
+            ], 200);
         }
-        
 
         return response()->json(['message' => 'Client not found'], 404);
     }
-    public function recall(Request $request)
-    {
-        $validated = $request->validate([
-            'queue_id' => 'required|integer',
-            'selectedClient' => 'required|integer',
-        ]);
+    // public function transfer_client(Request $request)
+    // {
+    //     $validated = $request->validate([
+    //         'queue_id' => 'required|integer',
+    //         'selectedCounter' => 'required|integer',
+    //     ]);
 
-        $client = QueuesModel::find($validated['queue_id']); // Assuming Client is your model
+    //     $client = QueuesModel::find($validated['queue_id']); // Assuming Client is your model
 
-        if ($client) {
-            $client->status = 'recall';
-            $client->save();
+    //     if ($client) {
+    //         $oldCounterId = $client->counter_id; // Save old counter
+
+    //         $client->counter_id = $validated['selectedCounter'];
+    //         $client->save();
+
+    //         event(new ClientUpdated($client, $oldCounterId));
+
+    //         return response()->json(['message' => 'Transfer completed successfully'], 200);
+    //     }
 
 
-            return response()->json(['message' => 'Recall completed successfully'], 200);
-        }
+    //     return response()->json(['message' => 'Client not found'], 404);
+    // }
 
-        return response()->json(['message' => 'Client not found'], 404);
-    }
 }

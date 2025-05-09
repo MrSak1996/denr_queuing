@@ -10,8 +10,11 @@ const props = defineProps({
     open: {
         type: Boolean,
         default: false,
-    }
+    },
+  serviceType: Number, // You'll get 1, 2 or 3 here
+
 });
+
 
 
 const showQueueGenerateModal = ref(false);
@@ -32,7 +35,7 @@ const openQueueGenerateModal = async (counterId: number, priority_level_id: numb
             selectedCounterId.value = response.data.counter_name;
             selectedQueueNo.value = qNum;
             showQueueGenerateModal.value = true;
-    
+    emit('close')
         } else {
             console.warn('Response received but no message found.');
         }
@@ -52,7 +55,9 @@ const closeModal = () => {
     emit('close');
 };
 
-onMounted(() => { });
+onMounted(() => {
+
+});
 </script>
 
 <template>
@@ -79,7 +84,7 @@ onMounted(() => { });
 
                         <Button
                             class="h-[100px] w-full border !bg-gradient-to-r from-blue-950 to-green-500 text-white md:w-full text-center p-2 mb-4"
-                            @click="openQueueGenerateModal(1,4)">
+                            @click="openQueueGenerateModal(props.serviceType,4)">
                             <div class="flex flex-col items-center justify-center leading-tight">
                                 <span class="font-extrabold text-[40px]">REGULAR</span>
                             </div>
@@ -87,7 +92,7 @@ onMounted(() => { });
 
                         <Button
                             class="h-[100px] w-full border !bg-gradient-to-r from-blue-950 to-green-700 text-white md:w-full text-center p-2"
-                            @click="openQueueGenerateModal(1,1)">
+                            @click="openQueueGenerateModal(props.serviceType,1)">
                             <div class="flex flex-col items-center justify-center leading-tight">
                                 <span class="font-extrabold text-[40px]">PRIORITY LANE</span>
                                 <span class="text-[30px] md:text-[14px] text-center">

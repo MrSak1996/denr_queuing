@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Events\CounterEvent;
+use App\Events\QueueListUpdated;
 use App\Models\QueuesModel;
 use App\Models\Clients;
 use App\Events\ClientUpdated;
@@ -17,7 +18,7 @@ class CounterController extends Controller
     {
         $counterIds = [1, 2, 3];
         $allData = collect();
-    
+
         foreach ($counterIds as $id) {
             $results = DB::table('vw_counter_queue')
                 ->where('service_counter_id', $id)
@@ -33,31 +34,33 @@ class CounterController extends Controller
                 ->orderBy('queued_at', 'asc')
                 ->limit(1)
                 ->get();
-    
+
             if ($results->isEmpty()) {
                 // If no client, still return counter info with null client fields
-                $results = collect([[
-                    'service_counter_id' => $id,
-                    'counter_name' => 'Counter ' . $id,  // Adjust if you have names
-                    'queue_number' => null,
-                    'status' => null,
-                    'priority_level' => null,
-                    'queued_at' => null,
-                ]]);
+                $results = collect([
+                    [
+                        'service_counter_id' => $id,
+                        'counter_name' => 'Counter ' . $id,  // Adjust if you have names
+                        'queue_number' => null,
+                        'status' => null,
+                        'priority_level' => null,
+                        'queued_at' => null,
+                    ]
+                ]);
             }
-    
+
             $allData = $allData->merge($results);
         }
-    
+
         return response()->json(['data' => $allData]);
     }
-    
+
 
     public function queue_list(Request $request)
-    {   
+    {
         $data = DB::table('queues')
-        ->leftJoin('service_counters as sc', 'queues.counter_id', '=', 'sc.id')
-        ->where('is_called', 1)
+            ->leftJoin('service_counters as sc', 'queues.counter_id', '=', 'sc.id')
+            ->where('is_called', 1)
             ->where('status', 'serving')
             ->orderBy('called_at', 'desc')
             ->limit(1)
@@ -133,12 +136,12 @@ class CounterController extends Controller
 
         // Fire event
         $client = QueuesModel::where('counter_id', $counterId)
-            ->select('queues.id','queues.priority_level_id', 'queues.queue_number', 'queues.counter_id', 'counter_name', 'queues.status', 'queues.queued_at', 'queues.called_at')
+            ->select('queues.id', 'queues.priority_level_id', 'queues.queue_number', 'queues.counter_id', 'counter_name', 'queues.status', 'queues.queued_at', 'queues.called_at')
             ->leftJoin('service_counters as sc', 'queues.counter_id', '=', 'sc.id')
             ->orderBy('updated_at', 'desc')
             ->first();
 
-            event(new ClientUpdated($client));
+        event(new ClientUpdated($client));
 
         return response()->json([
             'message' => 'Queue status updated successfully',
@@ -147,10 +150,15 @@ class CounterController extends Controller
             'counter_name' => $client->counter_name
         ]);
     }
-    
+
+
     public function recallClient(Request $request)
     {
-        $queue = QueuesModel::where('id', $request->queue_id)->first();
+        $queue = QueuesModel::query()
+            ->select('queues.*', 'sc.counter_name')
+            ->leftJoin('service_counters as sc', 'queues.counter_id', '=', 'sc.id')
+            ->where('queues.id', $request->queue_id)
+            ->first();
 
         if (!$queue) {
             return response()->json(['error' => 'Queue not found'], 404);
@@ -160,7 +168,19 @@ class CounterController extends Controller
             $queue->called_at = now();
             $queue->save();
 
-            return response()->json(['message' => 'Client re-called successfully.']);
+            // ✅ Fire event to notify clients
+            event(new QueueListUpdated(
+                $queue->counter_name,
+                $queue->queue_number,
+                $queue->called_at
+            ));
+
+            return response()->json([
+                'message' => 'Recall completed successfully',
+                'counter_name' => $queue->counter_name,
+                'called_at' => $queue->called_at,
+                'queue_number' => $queue->queue_number,
+            ], 200);
         }
 
         return response()->json(['error' => 'Client is not in serving state or already handled.'], 400);

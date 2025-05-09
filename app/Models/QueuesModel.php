@@ -42,5 +42,8 @@ class QueuesModel extends Model
         return $this->belongsTo(ServiceCounter::class);
     }
 
-    
+    public function service_counter()
+    {
+        return $this->belongsTo(ServiceCounter::class, 'counter_id');
+    }
 }

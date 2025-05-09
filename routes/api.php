@@ -17,7 +17,7 @@ Route::post('/update-client-status', [ClientController::class, 'updateStatus']);
 Route::post('/set_client_priority', [ClientController::class, 'set_client_priority']); // 
 Route::post('/save_queue_logs', [ClientController::class, 'save_queue_logs']);
 Route::post('/transfer-client', [ClientController::class, 'transfer_client']);
-Route::post('/recall', [ClientController::class, 'recall']);
+// Route::post('/recall', [ClientController::class, 'recall']);
 Route::post('/update-client-transaction', [CounterController::class, 'update_client_transaction']);
 Route::post('/recallClient', [CounterController::class, 'recallClient']);
 Route::post('/transaction', [CounterController::class, 'transaction']);
