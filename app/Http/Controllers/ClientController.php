@@ -47,7 +47,7 @@ class ClientController extends Controller
                 'queues.queued_at'
             )
             ->where('u.service_counter_id', $counterId)
-            ->whereIn('queues.status', ['waiting', 'serving'])
+            ->whereIn('queues.status', ['ongoing','waiting', 'serving'])
             ->orderByRaw("
             CASE 
                 WHEN p.level_name = 'PWD' THEN 0
@@ -144,51 +144,51 @@ class ClientController extends Controller
 
         return response()->json($counters);
     }
-    public function transfer_client(Request $request)
-    {
-        $validated = $request->validate([
-            'queue_id' => 'required|integer',
-            'selectedCounter' => 'required|integer',
+   public function transfer_client(Request $request)
+{
+    $validated = $request->validate([
+        'queue_id' => 'required|integer',
+        'selectedCounter' => 'required|integer',
+    ]);
+
+    $client = QueuesModel::with('service_counter')->find($validated['queue_id']);
+
+    if ($client) {
+        $oldCounterId = $client->counter_id;
+        $oldCounterName = optional($client->service_counter)->counter_name ?? 'Unknown';
+
+        // Clear the old counter's queue number
+        event(new CounterEvent($oldCounterId, null,$client->status));
+
+        // Change to new counter
+        $client->counter_id = $validated['selectedCounter'];
+        $client->save();
+
+        $newCounter = \App\Models\ServiceCounter::find($validated['selectedCounter']);
+        $newCounterName = optional($newCounter)->counter_name ?? 'Unknown';
+
+        // Fire new counter event with new queue number
+        event(new CounterEvent($client->counter_id, $client->queue_number, $client->status));
+
+        // Optional: if you're using a custom event for logging transfer
+        event(new ClientTransferred(
+            $client->queue_number,
+            $oldCounterId,
+            $oldCounterName,
+            $client->counter_id,
+            $newCounterName
+        ));
+
+        return response()->json([
+            'message' => 'Transfer completed successfully',
+            'queue_number' => $client->queue_number,
+            'old_counter_name' => $oldCounterName,
+            'new_counter_name' => $newCounterName
         ]);
-
-        $client = QueuesModel::with('service_counter')->find($validated['queue_id']); // eager load current counter
-        
-
-        if ($client) {
-            $oldCounterId = $client->counter_id;
-            $oldCounterName = optional($client->service_counter)->counter_name ?? 'Unknown';
-
-            // Change counter
-            $client->counter_id = $validated['selectedCounter'];
-            $client->save();
-
-            // Get new counter name
-            $newCounter = \App\Models\ServiceCounter::find($validated['selectedCounter']);
-            $newCounterName = optional(value: $newCounter)->counter_name ?? 'Unknown';
-
-            $client = QueuesModel::find($validated['queue_id']); // Assuming Client is your model
-            event(new CounterEvent($client->counter_id, "---", $client->status));
-
-            // ✅ Fire event to notify admin
-            event(new ClientTransferred(
-                $client->queue_number,
-                $oldCounterId,
-                $oldCounterName,
-                $client->counter_id,
-                $newCounterName
-            ));
-
-
-            return response()->json([
-                'message' => 'Transfer completed successfully',
-                'queue_number' => $client->queue_number,
-                'old_counter_name' => $oldCounterName,
-                'new_counter_name' => $newCounterName
-            ], 200);
-        }
-
-        return response()->json(['message' => 'Client not found'], 404);
     }
+
+    return response()->json(['message' => 'Client not found'], 404);
+}
     // public function transfer_client(Request $request)
     // {
     //     $validated = $request->validate([

@@ -54,6 +54,7 @@ const btn_transfer = async () => {
             summary: 'Client Transferred',
             life: 3000,
         });
+        location.reload();
     } catch (error) {
         console.error('Error transferring client:', error);
     }

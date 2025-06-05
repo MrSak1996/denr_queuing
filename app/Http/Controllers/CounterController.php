@@ -22,7 +22,7 @@ class CounterController extends Controller
         foreach ($counterIds as $id) {
             $results = DB::table('vw_counter_queue')
                 ->where('service_counter_id', $id)
-                ->whereIn('status', ['serving', 'waiting'])
+                ->whereIn('status', ['serving', 'ongoing'])
                 ->orderByRaw("
                     CASE 
                         WHEN priority_level = 'PWD' THEN 0

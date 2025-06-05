@@ -18,12 +18,12 @@ const closeModal = () => {
     emit('close');
 };
 
-onMounted(() => { console.log("a")});
+onMounted(() => { console.log("a") });
 </script>
 
 <template>
-    <div v-if="queueGen" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50" role="dialog"
-        tabindex="-1" aria-labelledby="progress-modal">
+    <div v-if="queueGen" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
+        role="dialog" tabindex="-1" aria-labelledby="progress-modal">
         <div
             class="mx-4 w-full max-w-lg transform rounded-xl border bg-white shadow-sm transition-transform duration-500 dark:border-neutral-700 dark:bg-neutral-800">
             <!-- Modal Header -->
@@ -40,11 +40,8 @@ onMounted(() => { console.log("a")});
                         <p class="text-xl mb-2 font-medium text-blue-800">Your queue number is:</p>
                         <p class="text-[150px] font-bold leading-none text-blue-800">{{ queue_no }}</p>
                         <p class="text-xl mt-2 font-medium text-blue-800">Please proceed to the</p>
-                        <p class="text-[50px] font-bold leading-none text-green-800">Counter {{ counterId }}</p>
+                        <p class="text-[50px] font-bold leading-none text-green-800">{{ counterId }}</p>
                     </div>
-
-
-
 
 
                 </div>

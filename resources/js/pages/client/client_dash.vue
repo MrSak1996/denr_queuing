@@ -26,7 +26,7 @@ let speaking = false;
 
 // For transferring state
 const is_transferring = ref(false);
-const transferInfo = ref<{ queue_number: number | null;old_counter: string | null; counter_name: string | null }>({
+const transferInfo = ref<{ queue_number: number | null; old_counter: string | null; counter_name: string | null }>({
   queue_number: null,
   counter_name: null,
   old_counter: null
@@ -74,7 +74,7 @@ const speakQueueCall = (queueNumber: number, counterId: number, calledAt: string
   const lastSpokenTimestamp = spokenTimestamps.value[queueNumber];
   if (lastSpokenTimestamp === calledAt) return; // Skip if already spoken
 
-  const text = `Queue number ${queueNumber}, please proceed to counter ${counterId || 1}.`;
+  const text = `Queue number ${queueNumber}, please proceed to  ${counterId || 1}.`;
   speaking = true;
   speakText(text, () => {
     speaking = false;
@@ -84,10 +84,10 @@ const speakQueueCall = (queueNumber: number, counterId: number, calledAt: string
 };
 
 const speakClientTransfer = (queue_number: number, oldCounter: string, newCounter: string) => {
-  const text = `Queue number ${queue_number} has been transferred from counter ${oldCounter} to counter ${newCounter}.`;
+  const text = `Queue number ${queue_number} has been transferred from  ${oldCounter} to  ${newCounter}.`;
 
   is_transferring.value = true;
-  transferInfo.value = { queue_number,old_counter:oldCounter, counter_name: newCounter };
+  transferInfo.value = { queue_number, old_counter: oldCounter, counter_name: newCounter };
   speakText(text, () => {
     is_transferring.value = false;
     transferInfo.value = { queue_number: null, old_counter: null, counter_name: null };
@@ -109,17 +109,20 @@ const fetchCurrentClients = async () => {
       window.Echo.channel(`client.counter.${id}`).listen('.CounterEvent', (e: any) => {
         const updatedCounterId = e.service_counter_id;
         const updatedQueueNumber = e.queue_number;
-
         const index = counters.value.findIndex((counter) => counter.service_counter_id === updatedCounterId);
+
+        const displayValue = updatedQueueNumber === null ? '---' : updatedQueueNumber;
+
         if (index !== -1) {
-          counters.value[index].queue_number = updatedQueueNumber;
+          counters.value[index].queue_number = displayValue;
         } else {
           counters.value.push({
             service_counter_id: updatedCounterId,
-            queue_number: updatedQueueNumber,
+            queue_number: displayValue,
           });
         }
       });
+
     });
   } catch (error) {
     console.error('Error fetching counters:', error);
@@ -189,31 +192,31 @@ onUnmounted(() => {
 
 <template>
   <div class="grid grid-cols-3 gap-6">
-    <div
-      v-for="counter in counters.slice(0, 3)"
-      :key="counter.service_counter_id"
-      class="mx-2 inline-block h-24 rounded-sm bg-blue-950 p-3 shadow-md"
-    >
+    <div v-for="counter in counters.slice(0, 3)" :key="counter.service_counter_id"
+      class="mx-2 inline-block h-24 rounded-sm bg-blue-950 p-3 shadow-md">
       <div class="text-center text-6xl font-semibold leading-none text-white">
         {{ counter.counter_name }}
       </div>
-      <div v-if="counter.service_counter_id == 1">
+      <div v-if="counter.service_counter_id == 1" class="text-center">
         <span class="text-white">(LICENSED, PERMITTING, CERTIFICATION AND OTHER CONCERNS)</span>
       </div>
+      <div v-if="counter.service_counter_id == 2" class="text-center">
+        <span class="text-white">(SMD SERVICES)</span>
+      </div>
+      <div v-if="counter.service_counter_id == 3" class="text-center">
+        <span class="text-white">(TD SERVICES)</span>
+      </div>
+
       <div class="mt-1">
         <div class="flex items-center justify-center">
-          <div
-            v-if="counter.queue_number != null"
+          <div v-if="counter.queue_number != null"
             class="rounded-lg bg-white px-2 py-1 text-[190px] font-bold leading-none text-[#132b57]"
-            :class="{ 'mt-6': counter.service_counter_id === 2 || counter.service_counter_id === 3 }"
-          >
+            :class="{ 'mt-6': counter.service_counter_id === 2 || counter.service_counter_id === 3 }">
             {{ counter.queue_number }}
           </div>
-          <div
-            v-else
+          <div v-else
             class="rounded-lg border-4 border-[#0d4917] bg-white px-2 py-1 text-[190px] font-bold leading-none text-[#132b57]"
-            :class="{ 'mt-6': counter.service_counter_id === 2 || counter.service_counter_id === 3 }"
-          >
+            :class="{ 'mt-6': counter.service_counter_id === 2 || counter.service_counter_id === 3 }">
             ---
           </div>
         </div>
@@ -226,19 +229,15 @@ onUnmounted(() => {
       <!-- Left Content -->
       <div
         class="h-[500px] w-full flex-1 overflow-hidden rounded border bg-cover bg-center p-4 text-center text-white shadow transition-all duration-1000 ease-in-out"
-        :style="{ backgroundImage: `url(${currentBg})` }"
-      ></div>
+        :style="{ backgroundImage: `url(${currentBg})` }"></div>
 
       <!-- Right Sidebar -->
-      <div
-        class="flex w-full flex-col gap-0 rounded px-6 py-5 text-center md:w-1/3"
-        v-if="is_transferring"
-      >
+      <div class="flex w-full flex-col gap-0 rounded px-6 py-5 text-center md:w-1/3" v-if="is_transferring">
         <div class="mt-3 text-5xl font-semibold text-red-700">Queue Number</div>
-        <div class="blink text-[300px] font-bold leading-none text-red-700">
+        <div class="blink text-[250px] font-bold leading-none text-red-700">
           {{ transferInfo.queue_number }}
         </div>
-     
+
         <div class="rounded-lg bg-slate-900 px-4 py-2 text-6xl text-white">
           Has been transferred from counter {{ transferInfo.old_counter }} to counter {{ transferInfo.counter_name }}
         </div>
@@ -247,17 +246,13 @@ onUnmounted(() => {
         </div>
       </div>
 
-      <div
-        class="flex w-full flex-col gap-0 rounded px-6 py-5 text-center md:w-1/3"
-        v-else
-        v-for="queue in queueList"
-        :key="queue.queue_number"
-      >
+      <div class="flex w-full flex-col gap-0 rounded px-6 py-5 text-center md:w-1/3" v-else v-for="queue in queueList"
+        :key="queue.queue_number">
         <div class="mt-3 text-5xl font-semibold text-[#132b57]">Ticket Number</div>
-        <div class="blink text-[300px] font-bold leading-none text-red-700">
+        <div class="blink text-[250px] font-bold leading-none text-red-700">
           {{ queue.queue_number }}
         </div>
-     
+
         <div class="rounded-lg bg-slate-900 px-4 py-2 text-6xl text-white">
           Please proceed to <span class="font-bold">{{ queue.counter_name }}</span>
         </div>
@@ -269,18 +264,17 @@ onUnmounted(() => {
 <style scoped>
 @keyframes blink {
 
-0%,
-100% {
-  opacity: 1;
-}
+  0%,
+  100% {
+    opacity: 1;
+  }
 
-50% {
-  opacity: 0;
-}
+  50% {
+    opacity: 0;
+  }
 }
 
 .blink {
-animation: blink 1s infinite;
+  animation: blink 1s infinite;
 }
-
 </style>

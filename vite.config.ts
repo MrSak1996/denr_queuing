@@ -12,7 +12,7 @@ export default defineConfig({
         port: 5173,        // optional (default is 5173)
         strictPort: true,
         hmr: {
-            host: '10.201.13.36',  // <-- your actual machine IP address
+            host: '10.201.12.207',  // <-- your actual machine IP address
         },
     },
     plugins: [

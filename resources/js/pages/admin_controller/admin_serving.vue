@@ -117,7 +117,7 @@ const callNextClient = async () => {
     try {
         await axios.post('/api/update-client-status', {
             queue_id: currentClient.queue_id,
-            status: 'serving',
+            status: 'ongoing',
         });
 
         clients.value.shift();
@@ -227,8 +227,6 @@ const btn_call = async (queue_id) => {
     }
 };
 
-
-
 const speakQueueCall = (queueNumber: number, counterId: number, calledAt: string) => {
     const lastSpokenTimestamp = spokenTimestamps.value[queueNumber];
     if (lastSpokenTimestamp === calledAt) return; // Skip if already spoken
@@ -293,42 +291,29 @@ onMounted(() => {
 <template>
     <div class="col-span-1 flex flex-col items-center justify-start gap-4">
         <Toast />
-        <ModalTransfer v-if="transferModal" :queue="selectedProduct" :open="transferModal" @close="transferModal = false"></ModalTransfer>
-        <ModalPriority
-            v-if="priorityModal"
-            :counterId="user.service_counter_id"
-            :queue="selectedProduct"
-            :open="priorityModal"
-            @close="priorityModal = false"
-        ></ModalPriority>
+        <ModalTransfer v-if="transferModal" :queue="selectedProduct" :open="transferModal"
+            @close="transferModal = false"></ModalTransfer>
+        <ModalPriority v-if="priorityModal" :counterId="user.service_counter_id" :queue="selectedProduct"
+            :open="priorityModal" @close="priorityModal = false"></ModalPriority>
         <ModalHoldingArea>
-            v-if="holdingModal" :counterId="user.service_counter_id" :queue="selectedProduct" :open="holdingModal" @close="holdingModal =
-            false"></ModalHoldingArea
-        >
-        <ModalRecall
-            v-if="recallModal"
-            :counterId="user.service_counter_id"
-            :queue="selectedProduct"
-            :open="recallModal"
-            @close="recallModal = false"
-        ></ModalRecall>
+            v-if="holdingModal" :counterId="user.service_counter_id" :queue="selectedProduct" :open="holdingModal"
+            @close="holdingModal =
+            false"></ModalHoldingArea>
+        <ModalRecall v-if="recallModal" :counterId="user.service_counter_id" :queue="selectedProduct"
+            :open="recallModal" @close="recallModal = false"></ModalRecall>
 
         <div class="flex w-full flex-col items-center gap-4">
-            <transition-group v-if="queue.length > 0" name="fade-slide" tag="div" class="flex w-full flex-col items-center gap-4">
-                <div
-                    v-for="(pac, index) in queue"
-                    :key="pac.queue_id + '-' + pac.isPriorityLane"
+            <transition-group v-if="queue.length > 0" name="fade-slide" tag="div"
+                class="flex w-full flex-col items-center gap-4">
+                <div v-for="(pac, index) in queue" :key="pac.queue_id + '-' + pac.isPriorityLane"
                     class="w-full max-w-lg rounded border p-6 text-center shadow"
-                    :class="pac.isPriorityLane ? 'bg-yellow-200' : 'bg-gray-50'"
-                >
+                    :class="pac.isPriorityLane ? 'bg-yellow-200' : 'bg-gray-50'">
                     <div class="flex flex-col items-center gap-2">
                         <div v-if="index === 0" class="text-lg font-semibold text-green-600">Current Serving</div>
                         <div class="text-lg font-bold text-blue-900">Token Number</div>
 
-                        <div
-                            class="mt-2 rounded-lg border-4 border-green-500 px-10 py-6 text-6xl font-bold"
-                            :class="pac.isPriorityLane ? 'text-blue-800' : 'text-green-500'"
-                        >
+                        <div class="mt-2 rounded-lg border-4 border-green-500 px-10 py-6 text-6xl font-bold"
+                            :class="pac.isPriorityLane ? 'text-blue-800' : 'text-green-500'">
                             {{ pac.queue_number }}
                         </div>
 
@@ -339,8 +324,7 @@ onMounted(() => {
 
                         <button
                             class="mt-4 w-24 rounded-md bg-[#1a2d42] py-2 text-sm font-bold text-white transition-all hover:brightness-110"
-                            @click="callNextClient"
-                        >
+                            @click="callNextClient">
                             {{ pac.status.toUpperCase() }}
                         </button>
                     </div>
@@ -360,30 +344,16 @@ onMounted(() => {
     <div class="col-span-3 flex max-w-full flex-col gap-4">
         <div class="flex h-[700px] flex-col gap-5 rounded-xl text-slate-900 md:flex-row">
             <div class="max-h-[72vh] w-full flex-1 overflow-hidden rounded border bg-gray-50 p-4 text-center shadow">
-                <DataTable
-                    v-model:selection="selectedProduct"
-                    :value="clients"
-                    selectionMode="single"
-                    size="small"
-                    paginator
-                    showGridlines
-                    :rows="20"
-                    filterDisplay="menu"
-                    scrollable
-                    scrollHeight="flex"
-                    dataKey="queue_number"
-                    :metaKeySelection="false"
-                    @rowSelect="onRowSelect"
-                >
+                <DataTable v-model:selection="selectedProduct" :value="clients" selectionMode="single" size="small"
+                    paginator showGridlines :rows="20" filterDisplay="menu" scrollable scrollHeight="flex"
+                    dataKey="queue_number" :metaKeySelection="false" @rowSelect="onRowSelect">
                     <Column field="counter_name" header="Counter"></Column>
                     <template #empty>
                         <div class="flex flex-col items-center justify-center py-6 text-gray-500">
-                            <svg class="mb-2 h-12 w-12 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                <path
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                    d="M9 17v-2a4 4 0 014-4h6M9 17H7a4 4 0 01-4-4V7a4 4 0 014-4h6a4 4 0 014 4v6a4 4 0 01-4 4H9z"
-                                />
+                            <svg class="mb-2 h-12 w-12 text-gray-400" fill="none" stroke="currentColor" stroke-width="2"
+                                viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                    d="M9 17v-2a4 4 0 014-4h6M9 17H7a4 4 0 01-4-4V7a4 4 0 014-4h6a4 4 0 014 4v6a4 4 0 01-4 4H9z" />
                             </svg>
                             <div class="text-lg font-semibold">No clients found</div>
                             <div class="text-sm">Please wait for new clients to appear in the queue.</div>
@@ -393,13 +363,10 @@ onMounted(() => {
                     <Column field="priority_level" header="Priority Level" class="w-[80px]">
                         <template #body="{ data }">
                             <Chip class="py-0 pl-0 pr-4">
-                                <span
-                                    :class="{
-                                        'bg-orange-600 text-white': data.priority_level !== 'Regular', // Default orange
-                                        'bg-gradient-to-b from-[#2E4156] to-[#1A2D42] text-white': data.priority_level === 'Regular', // Blue gradient for Regular
-                                    }"
-                                    class="text-primary-contrast flex h-8 w-8 items-center justify-center rounded-full"
-                                >
+                                <span :class="{
+                                    'bg-orange-600 text-white': data.priority_level !== 'Regular', // Default orange
+                                    'bg-gradient-to-b from-[#2E4156] to-[#1A2D42] text-white': data.priority_level === 'Regular', // Blue gradient for Regular
+                                }" class="text-primary-contrast flex h-8 w-8 items-center justify-center rounded-full">
                                     <!-- Optionally, display the first letter or some icon -->
                                     <!-- {{ data.priority_level.charAt(0) }} -->
                                 </span>
@@ -407,18 +374,26 @@ onMounted(() => {
                         </template>
                     </Column>
                     <Column field="status" header="Status"></Column>
-                    <Column field="queued_at" header="Date/Time"></Column>
+                    <Column field="queued_at" header="Date/Time">
+                        <template #body="{ data }">
+                            {{ new Date(data.queued_at).toLocaleDateString('en-US', {
+                                year: 'numeric', month: 'long',
+                                day: '2-digit',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                                hour12: true
+                            }) }}
+                        </template>
+                    </Column>
+
                     <Column header="Action" style="width: 130px">
                         <template #body="{ data }">
                             <!-- <SplitButton label="Set Priority" dropdownIcon="pi pi-cog" :model="items(data)" class="mr-2"/> -->
-                            <Button icon="pi pi-check" aria-label="Save" @click="completeTransaction" class="p-button-sm mr-2" />
-                            <Button
-                                severity="warn"
-                                icon="pi pi-megaphone"
-                                aria-label="Save"
-                                @click="btn_call(data.queue_id)"
-                                class="p-button-sm mr-2"
-                            />
+                            <Button icon="pi pi-check"
+                                :disabled="data.status !== 'ongoing' && data.status !== 'serving'"
+                                @click="completeTransaction" class="p-button-sm mr-2" />
+                            <Button severity="warn" icon="pi pi-megaphone" aria-label="Save"
+                                @click="btn_call(data.queue_id)" class="p-button-sm mr-2" />
                             <!-- <Button severity="danger" icon="pi pi-arrow-circle-right" aria-label="Save"
                                 class="p-button-sm" /> -->
                         </template>
@@ -428,9 +403,14 @@ onMounted(() => {
 
             <div class="flex w-full flex-col gap-5 rounded border bg-gray-50 p-4 shadow md:w-1/4" style="height: 72%">
                 <div class="grid grid-cols-1 gap-3 p-3">
-                    <button @click="callNextClient" class="button-action"><i class="pi pi-forward mb-1 text-base"></i> NEXT</button>
-                    <button @click="priorityModal = true" class="button-action"><i class="pi pi-star mb-1 text-base"></i> PRIORITY</button>
-                    <button @click="transferModal = true" class="button-action"><i class="pi pi-share-alt mb-1 text-base"></i> TRANSFER</button>
+                    <button @click="callNextClient" class="button-action"><i class="pi pi-forward mb-1 text-base"></i>
+                        NEXT</button>
+                    <button @click="priorityModal = true" class="button-action"><i
+                            class="pi pi-star mb-1 text-base"></i>
+                        PRIORITY</button>
+                    <button @click="transferModal = true" class="button-action"><i
+                            class="pi pi-share-alt mb-1 text-base"></i>
+                        TRANSFER</button>
                 </div>
                 <!-- <Fieldset legend="Holding Area">
                     <DataTable showGridlines size="small" :value="clients" :column="5" scrollHeight="30vh"

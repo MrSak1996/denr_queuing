@@ -9,8 +9,8 @@ return [
     'allowed_origins' => [
         'http://127.0.0.0',
         'http://denr_queuing.test:5173',
-        'http://10.201.13.36:8000',
-        'http://10.201.13.36:5173'
+        'http://10.201.12.207:8000',
+        'http://10.201.12.207:5173'
     ],
 
     'allowed_origins_patterns' => [],
